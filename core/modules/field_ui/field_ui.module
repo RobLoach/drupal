@@ -41,8 +41,10 @@ function field_ui_help($route_name, RouteMatchInterface $route_match) {
       $output .= '<dd>' . t('There are two main reasons for reusing fields. First, reusing fields can save you time over defining new fields. Second, reusing fields also allows you to display, filter, group, and sort content together by field across content types. For example, the contributed Views module allows you to create lists and tables of content. So if you use the same field on multiple content types, you can create a View containing all of those content types together displaying that field, sorted by that field, and/or filtered by that field.') . '</dd>';
       $output .= '<dt>' . t('Fields on content items') . '</dt>';
       $output .= '<dd>' . t('Fields on content items are defined at the content-type level, on the <em>Manage fields</em> tab of the content type edit page (which you can reach from the <a href="@types">Content types page</a>). When you define a field for a content type, each content item of that type will have that field added to it. Some fields, such as the Title and Body, are provided for you when you create a content type, or are provided on content types created by your installation profile.', array('@types' => \Drupal::url('node.overview_types'))) . '</dd>';
-      $output .= '<dt>' . t('Fields on taxonomy terms') . '</dt>';
-      $output .= '<dd>' . t('Fields on taxonomy terms are defined at the taxonomy vocabulary level, on the <em>Manage fields</em> tab of the vocabulary edit page (which you can reach from the <a href="@taxonomy">Taxonomy page</a>). When you define a field for a vocabulary, each term in that vocabulary will have that field added to it. For example, you could define an image field for a vocabulary to store an icon with each term.', array('@taxonomy' => \Drupal::url('taxonomy.vocabulary_list'))) . '</dd>';
+      if (\Drupal::moduleHandler()->moduleExists('taxonomy')) {
+        $output .= '<dt>' . t('Fields on taxonomy terms') . '</dt>';
+        $output .= '<dd>' . t('Fields on taxonomy terms are defined at the taxonomy vocabulary level, on the <em>Manage fields</em> tab of the vocabulary edit page (which you can reach from the <a href="@taxonomy">Taxonomy page</a>). When you define a field for a vocabulary, each term in that vocabulary will have that field added to it. For example, you could define an image field for a vocabulary to store an icon with each term.', array('@taxonomy' => \Drupal::url('taxonomy.vocabulary_list'))) . '</dd>';
+      }
       $output .= '<dt>' . t('Fields on user accounts') . '</dt>';
       $output .= '<dd>' . t('Fields on user accounts are defined on a site-wide basis on the <a href="@fields">Manage fields tab</a> of the <a href="@accounts">Account settings</a> page. When you define a field for user accounts, each user account will have that field added to it. For example, you could add a long text field to allow users to include a biography.', array('@fields' => \Drupal::url('field_ui.overview_user'), '@accounts' => \Drupal::url('entity.user.admin_form'))) . '</dd>';
       $output .= '<dt>' . t('Fields on comments') . '</dt>';
@@ -96,7 +98,7 @@ function field_ui_entity_type_build(array &$entity_types) {
 function field_ui_entity_bundle_create($entity_type, $bundle) {
   // When a new bundle is created, the menu needs to be rebuilt to add our
   // menu item tabs.
-  \Drupal::service('router.builder')->setRebuildNeeded();
+  \Drupal::service('router.builder_indicator')->setRebuildNeeded();
 }
 
 /**
@@ -105,7 +107,7 @@ function field_ui_entity_bundle_create($entity_type, $bundle) {
 function field_ui_entity_bundle_rename($entity_type, $bundle_old, $bundle_new) {
   // When a bundle is renamed, the menu needs to be rebuilt to add our
   // menu item tabs.
-  \Drupal::service('router.builder')->setRebuildNeeded();
+  \Drupal::service('router.builder_indicator')->setRebuildNeeded();
 }
 
 /**
@@ -143,19 +145,22 @@ function field_ui_entity_operation(EntityInterface $entity) {
       $operations['manage-fields'] = array(
         'title' => t('Manage fields'),
         'weight' => 15,
-      ) + $entity->urlInfo('field_ui-fields')->toArray();
+        'url' => $entity->urlInfo('field_ui-fields'),
+      );
     }
     if ($account->hasPermission('administer '. $bundle_of . ' form display')) {
       $operations['manage-form-display'] = array(
         'title' => t('Manage form display'),
         'weight' => 20,
-      ) + $entity->urlInfo('field_ui-form-display')->toArray();
+        'url' => $entity->urlInfo('field_ui-form-display'),
+      );
     }
     if ($account->hasPermission('administer '. $bundle_of . ' display')) {
       $operations['manage-display'] = array(
         'title' => t('Manage display'),
         'weight' => 25,
-      ) + $entity->urlInfo('field_ui-display')->toArray();
+        'url' => $entity->urlInfo('field_ui-display'),
+      );
     }
   }
 
@@ -177,14 +182,14 @@ function field_ui_form_node_type_form_submit($form, FormStateInterface $form_sta
  * Implements hook_view_mode_presave().
  */
 function field_ui_view_mode_presave(EntityViewModeInterface $view_mode) {
-  \Drupal::service('router.builder')->setRebuildNeeded();
+  \Drupal::service('router.builder_indicator')->setRebuildNeeded();
 }
 
 /**
  * Implements hook_view_mode_delete().
  */
 function field_ui_view_mode_delete(EntityViewModeInterface $view_mode) {
-  \Drupal::service('router.builder')->setRebuildNeeded();
+  \Drupal::service('router.builder_indicator')->setRebuildNeeded();
 }
 
 /**

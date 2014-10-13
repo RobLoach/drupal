@@ -169,7 +169,8 @@ function content_translation_entity_operation_alter(array &$operations, \Drupal\
   if ($entity instanceof NodeInterface && $entity->isTranslatable()) {
     $operations['translate'] = array(
       'title' => t('Translate'),
-    ) + $entity->urlInfo('drupal:content-translation-overview')->toArray();
+      'url' => $entity->urlInfo('drupal:content-translation-overview'),
+    );
   }
 }
 
@@ -700,7 +701,7 @@ function content_translation_language_configuration_element_submit(array $form, 
   if (content_translation_enabled($context['entity_type'], $context['bundle']) != $enabled) {
     content_translation_set_config($context['entity_type'], $context['bundle'], 'enabled', $enabled);
     \Drupal::entityManager()->clearCachedDefinitions();
-    \Drupal::service('router.builder')->setRebuildNeeded();
+    \Drupal::service('router.builder_indicator')->setRebuildNeeded();
   }
 }
 
@@ -745,7 +746,7 @@ function content_translation_page_alter(&$page) {
           ->setOption('language', $language)
           ->setAbsolute()
           ->toString();
-        $page['#attached']['drupal_add_html_head_link'][] = array(
+        $page['#attached']['html_head_link'][] = array(
           array(
             'rel' => 'alternate',
             'hreflang' => $language->id,

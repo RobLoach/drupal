@@ -902,14 +902,8 @@ function template_preprocess_status_messages(&$variables) {
  *     is used as its CSS class. Each link should be itself an array, with the
  *     following elements:
  *     - title: The link text.
- *     - route_name: (optional) The name of the route to link to. If omitted
- *       (and if 'href' is omitted as well), the 'title' is shown as
- *       a plain text item in the links list.
- *     - route_parameters: (optional) An array of route parameters for the link.
- *     - href: (optional) The link URL. It is preferred to use 'route_name' and
- *       'route parameters' for internal links. Use 'href' for links to external
- *       URLs. If omitted (and if 'route_name' is omitted as well), the 'title'
- *       is shown as a plain text item in the links list.
+ *     - url: (optional) The url object to link to. If omitted, no a tag is
+ *       printed out.
  *     - html: (optional) Whether or not 'title' is HTML. If set, the title
  *       will not be passed through
  *       \Drupal\Component\Utility\String::checkPlain().
@@ -986,30 +980,26 @@ function template_preprocess_links(&$variables) {
     foreach ($links as $key => $link) {
       $item = array();
       $link += array(
-        'href' => NULL,
-        'route_name' => NULL,
-        'route_parameters' => NULL,
         'ajax' => NULL,
+        'url' => NULL,
       );
 
       $li_attributes = array('class' => array());
       // Use the array key as class name.
       $li_attributes['class'][] = drupal_html_class($key);
 
-      $keys = array('title', 'href', 'route_name', 'route_parameters');
+      $keys = ['title', 'url'];
       $link_element = array(
         '#type' => 'link',
         '#title' => $link['title'],
         '#options' => array_diff_key($link, array_combine($keys, $keys)),
-        '#href' => $link['href'],
-        '#route_name' => $link['route_name'],
-        '#route_parameters' => $link['route_parameters'],
+        '#url' => $link['url'],
         '#ajax' => $link['ajax'],
       );
 
       // Handle links and ensure that the active class is added on the LIs, but
       // only if the 'set_active_class' option is not empty.
-      if (isset($link['href']) || isset($link['route_name'])) {
+      if (isset($link['url'])) {
         if (!empty($variables['set_active_class'])) {
 
           // Also enable set_active_class for the contained link.
@@ -1027,16 +1017,16 @@ function template_preprocess_links(&$variables) {
             $li_attributes['data-drupal-link-query'] = Json::encode($query);
           }
 
-          if (isset($link['route_name'])) {
-            $path = \Drupal::service('url_generator')->getPathFromRoute($link['route_name'], $link['route_parameters']);
+          /** @var \Drupal\Core\Url $url */
+          $url = $link['url'];
+          if ($url->isRouted()) {
+            // Add a "data-drupal-link-system-path" attribute to let the
+            // drupal.active-link library know the path in a standardized manner.
+            $system_path = $url->getInternalPath();
+            // @todo System path is deprecated - use the route name and parameters.
+            // Special case for the front page.
+            $li_attributes['data-drupal-link-system-path'] = $system_path == '' ? '<front>' : $system_path;
           }
-          else {
-            $path = $link['href'];
-          }
-
-          // Add a "data-drupal-link-system-path" attribute to let the
-          // drupal.active-link library know the path in a standardized manner.
-          $li_attributes['data-drupal-link-system-path'] = \Drupal::service('path.alias_manager')->getPathByAlias($path);
         }
 
         $item['link'] = $link_element;
@@ -1808,7 +1798,6 @@ function template_preprocess_page(&$variables) {
   $variables['base_path']         = base_path();
   $variables['front_page']        = \Drupal::url('<front>');
   $variables['language']          = $language_interface;
-  $variables['language']->dir     = $language_interface->direction ? 'rtl' : 'ltr';
   $variables['logo']              = theme_get_setting('logo.url');
   $variables['site_name']         = (theme_get_setting('features.name') ? String::checkPlain($site_config->get('name')) : '');
   $variables['site_slogan']       = (theme_get_setting('features.slogan') ? Xss::filterAdmin($site_config->get('slogan')) : '');
@@ -2217,39 +2206,30 @@ function drupal_common_theme() {
     // From theme.inc.
     'html' => array(
       'variables' => array('page_object' => NULL),
-      'template' => 'html',
     ),
     'page' => array(
       'render element' => 'page',
-      'template' => 'page',
     ),
     'region' => array(
       'render element' => 'elements',
-      'template' => 'region',
     ),
     'time' => array(
       'variables' => array('timestamp' => NULL, 'text' => NULL, 'attributes' => array(), 'html' => FALSE),
-      'template' => 'time',
     ),
     'datetime_form' => array(
-      'template' => 'datetime-form',
       'render element' => 'element',
     ),
     'datetime_wrapper' => array(
-      'template' => 'datetime-wrapper',
       'render element' => 'element',
     ),
     'status_messages' => array(
       'variables' => array('display' => NULL),
-      'template' => 'status-messages',
     ),
     'links' => array(
       'variables' => array('links' => array(), 'attributes' => array('class' => array('links')), 'heading' => array(), 'set_active_class' => FALSE),
-      'template' => 'links',
     ),
     'dropbutton_wrapper' => array(
       'variables' => array('children' => NULL),
-      'template' => 'dropbutton-wrapper',
     ),
     'image' => array(
       // HTML 4 and XHTML 1.0 always require an alt attribute. The HTML 5 draft
@@ -2265,35 +2245,27 @@ function drupal_common_theme() {
       // The title attribute is optional in all cases, so it is omitted by
       // default.
       'variables' => array('uri' => NULL, 'width' => NULL, 'height' => NULL, 'alt' => '', 'title' => NULL, 'attributes' => array(), 'sizes' => NULL, 'srcset' => array(), 'style_name' => NULL),
-      'template' => 'image',
     ),
     'breadcrumb' => array(
       'variables' => array('links' => array()),
-      'template' => 'breadcrumb',
     ),
     'table' => array(
       'variables' => array('header' => NULL, 'rows' => NULL, 'footer' => NULL, 'attributes' => array(), 'caption' => NULL, 'colgroups' => array(), 'sticky' => FALSE, 'responsive' => TRUE, 'empty' => ''),
-      'template' => 'table',
     ),
     'tablesort_indicator' => array(
       'variables' => array('style' => NULL),
-      'template' => 'tablesort-indicator',
     ),
     'mark' => array(
       'variables' => array('status' => MARK_NEW),
-      'template' => 'mark',
     ),
     'item_list' => array(
       'variables' => array('items' => array(), 'title' => '', 'list_type' => 'ul', 'attributes' => array(), 'empty' => NULL),
-      'template' => 'item-list',
     ),
     'feed_icon' => array(
       'variables' => array('url' => NULL, 'title' => NULL),
-      'template' => 'feed-icon',
     ),
     'progress_bar' => array(
       'variables' => array('label' => NULL, 'percent' => NULL, 'message' => NULL),
-      'template' => 'progress-bar',
     ),
     'indentation' => array(
       'variables' => array('size' => 1),
@@ -2302,15 +2274,12 @@ function drupal_common_theme() {
     // From theme.maintenance.inc.
     'maintenance_page' => array(
       'render element' => 'page',
-      'template' => 'maintenance-page',
     ),
     'install_page' => array(
       'render element' => 'page',
-      'template' => 'install-page',
     ),
     'maintenance_task_list' => array(
       'variables' => array('items' => NULL, 'active' => NULL,  'variant' => NULL),
-      'template' => 'maintenance-task-list',
     ),
     'authorize_message' => array(
       'variables' => array('message' => NULL, 'success' => TRUE),
@@ -2327,82 +2296,63 @@ function drupal_common_theme() {
     // From pager.inc.
     'pager' => array(
       'variables' => array('tags' => array(), 'element' => 0, 'parameters' => array(), 'quantity' => 9),
-      'template' => 'pager',
     ),
     // From menu.inc.
     'menu' => array(
       'variables' => array('items' => array(), 'attributes' => array()),
-      'template' => 'menu',
     ),
     'menu_local_task' => array(
       'render element' => 'element',
-      'template' => 'menu-local-task',
     ),
     'menu_local_action' => array(
       'render element' => 'element',
-      'template' => 'menu-local-action',
     ),
     'menu_local_tasks' => array(
       'variables' => array('primary' => array(), 'secondary' => array()),
-      'template' => 'menu-local-tasks',
     ),
     // From form.inc.
     'input' => array(
       'render element' => 'element',
-      'template' => 'input',
     ),
     'select' => array(
       'render element' => 'element',
-      'template' => 'select',
     ),
     'fieldset' => array(
       'render element' => 'element',
-      'template' => 'fieldset',
     ),
     'details' => array(
       'render element' => 'element',
-      'template' => 'details',
     ),
     'radios' => array(
       'render element' => 'element',
-      'template' => 'radios',
     ),
     'checkboxes' => array(
       'render element' => 'element',
-      'template' => 'checkboxes',
     ),
     'form' => array(
       'render element' => 'element',
-      'template' => 'form',
     ),
     'textarea' => array(
       'render element' => 'element',
-      'template' => 'textarea',
     ),
     'form_element' => array(
       'render element' => 'element',
-      'template' => 'form-element',
     ),
     'form_element_label' => array(
       'render element' => 'element',
-      'template' => 'form-element-label',
     ),
     'vertical_tabs' => array(
       'render element' => 'element',
-      'template' => 'vertical-tabs',
     ),
     'container' => array(
       'render element' => 'element',
-      'template' => 'container',
     ),
     // From field system.
     'field' => array(
       'render element' => 'element',
-      'template' => 'field',
     ),
     'field_multiple_value_form' => array(
       'render element' => 'element',
-      'template' => 'field-multiple-value-form',
     ),
   );
 }
