@@ -795,9 +795,7 @@
    */
   Drupal.behaviors.viewsRemoveIconClass = {
     attach: function (context) {
-      $(context).find('.dropbutton').once('dropbutton-icon', function () {
-        $(this).find('.icon').removeClass('icon');
-      });
+      $(context).find('.dropbutton').once('dropbutton-icon').find('.icon').removeClass('icon');
     }
   };
 

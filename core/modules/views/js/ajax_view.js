@@ -63,7 +63,7 @@
 
     // Add the ajax to exposed forms.
     this.$exposed_form = $('form#views-exposed-form-' + settings.view_name.replace(/_/g, '-') + '-' + settings.view_display_id.replace(/_/g, '-'));
-    this.$exposed_form.once('exposed-form', jQuery.proxy(this.attachExposedFormAjax, this));
+    this.$exposed_form.once('exposed-form').each(jQuery.proxy(this.attachExposedFormAjax, this));
 
     // Add the ajax to pagers.
     this.$view
