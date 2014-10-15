@@ -13,16 +13,16 @@ use Drupal\comment\Plugin\Field\FieldType\CommentItemInterface;
  * Sets up the install tasks for the Standard install profile.
  */
 function standard_install_tasks() {
-	$tasks = array(
-		'standard_install_tasks_update_manager' => array(),
-		'standard_install_tasks_node' => array(),
-		'standard_install_tasks_comment' => array(),
-		'standard_install_tasks_user' => array(),
-		'standard_install_tasks_menu' => array(),
-		'standard_install_tasks_shortcut' => array(),
-	);
+  $tasks = array(
+    'standard_install_tasks_update_manager' => array(),
+    'standard_install_tasks_node' => array(),
+    'standard_install_tasks_comment' => array(),
+    'standard_install_tasks_user' => array(),
+    'standard_install_tasks_menu' => array(),
+    'standard_install_tasks_shortcut' => array(),
+  );
 
-	return $tasks;
+  return $tasks;
 }
 
 /**
