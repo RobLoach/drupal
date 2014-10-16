@@ -15,7 +15,6 @@ use Drupal\comment\Plugin\Field\FieldType\CommentItemInterface;
 function standard_install_tasks() {
   $tasks = array(
     'standard_install_tasks_update_manager' => array(),
-    'standard_install_tasks_node' => array(),
     'standard_install_tasks_comment' => array(),
     'standard_install_tasks_user' => array(),
     'standard_install_tasks_menu' => array(),
@@ -34,17 +33,6 @@ function standard_install_tasks_update_manager() {
   // example, Path module adds a base field to nodes and taxonomy terms after
   // those modules are already installed.
   \Drupal::service('entity.definition_update_manager')->applyUpdates();
-}
-
-/**
- * Install task to configure the Node module.
- */
-function standard_install_tasks_node() {
-  // Set front page to "node".
-  \Drupal::config('system.site')->set('page.front', 'node')->save();
-
-  // Enable the admin theme.
-  \Drupal::config('node.settings')->set('use_admin_theme', '1')->save();
 }
 
 /**

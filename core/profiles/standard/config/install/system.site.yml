@@ -1,0 +1,3 @@
+page:
+  # Set front page to "node".
+  front: node
