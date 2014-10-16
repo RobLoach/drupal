@@ -1,2 +1,2 @@
 # Enable the admin theme.
-use_admin_theme: 1
+use_admin_theme: true
