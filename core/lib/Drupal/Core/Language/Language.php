@@ -34,14 +34,14 @@ class Language implements LanguageInterface {
    *
    * @var string
    */
-  public $name = '';
+  protected $name = '';
 
   /**
    * The ID, langcode.
    *
    * @var string
    */
-  public $id = '';
+  protected $id = '';
 
   /**
    * The direction, left-to-right, or right-to-left.
@@ -101,6 +101,15 @@ class Language implements LanguageInterface {
    */
   public function getName() {
     return $this->name;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setName($name) {
+    $this->name = $name;
+
+    return $this;
   }
 
   /**

@@ -125,10 +125,10 @@ class ConfigEntityStorage extends EntityStorageBase implements ConfigEntityStora
   }
 
   /**
-   * Implements Drupal\Core\Entity\EntityStorageInterface::loadRevision().
+   * {@inheritdoc}
    */
   public function loadRevision($revision_id) {
-    return FALSE;
+    return NULL;
   }
 
   /**
@@ -189,7 +189,7 @@ class ConfigEntityStorage extends EntityStorageBase implements ConfigEntityStora
    */
   protected function doCreate(array $values) {
     // Set default language to site default if not provided.
-    $values += array('langcode' => $this->languageManager->getDefaultLanguage()->id);
+    $values += array('langcode' => $this->languageManager->getDefaultLanguage()->getId());
     $entity = new $this->entityClass($values, $this->entityTypeId);
 
     return $entity;

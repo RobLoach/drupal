@@ -691,7 +691,7 @@ function update_replace_permissions($replace) {
  * @param $flags
  *   (optional) Specifies the state of the languages that have to be returned.
  *   It can be: LanguageInterface::STATE_CONFIGURABLE,
- *   LanguageInterface::STATE_LOCKED, LanguageInterface::STATE_ALL.
+ *   LanguageInterface::STATE_LOCKED, or LanguageInterface::STATE_ALL.
  *
  * @return array
  *   An associative array of languages, keyed by the language code, ordered by
@@ -719,7 +719,7 @@ function update_language_list($flags = LanguageInterface::STATE_CONFIGURABLE) {
         $langcode = substr($langcode_config_name, strlen('language.entity.'));
         $info = \Drupal::config($langcode_config_name)->get();
         $languages[$langcode] = new Language(array(
-          'default' => ($info['id'] == $default->id),
+          'default' => ($info['id'] == $default->getId()),
           'name' => $info['label'],
           'id' => $info['id'],
           'direction' => $info['direction'],
@@ -731,7 +731,7 @@ function update_language_list($flags = LanguageInterface::STATE_CONFIGURABLE) {
     }
     else {
       // No language module, so use the default language only.
-      $languages = array($default->id => $default);
+      $languages = array($default->getId() => $default);
       // Add the special languages, they will be filtered later if needed.
       $languages += \Drupal::languageManager()->getDefaultLockedLanguages($default->getWeight());
     }
@@ -744,9 +744,9 @@ function update_language_list($flags = LanguageInterface::STATE_CONFIGURABLE) {
 
   // Add the site's default language if flagged as allowed value.
   if ($flags & LanguageInterface::STATE_SITE_DEFAULT) {
-    $default = isset($default) ? $default : \Drupal::languageManager()->getDefaultLanguage();
+    $default = \Drupal::languageManager()->getDefaultLanguage();
     // Rename the default language.
-    $default->name = t("Site's default language (@lang_name)", array('@lang_name' => $default->name));
+    $default->setName(t("Site's default language (@lang_name)", array('@lang_name' => $default->getName())));
     $filtered_languages[LanguageInterface::LANGCODE_SITE_DEFAULT] = $default;
   }
 

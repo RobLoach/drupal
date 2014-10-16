@@ -282,7 +282,7 @@ class NodeSearch extends ConfigurableSearchPluginBase implements AccessibleInter
         'extra' => $extra,
         'score' => $item->calculated_score,
         'snippet' => search_excerpt($keys, $node->rendered, $item->langcode),
-        'langcode' => $node->language()->id,
+        'langcode' => $node->language()->getId(),
       );
     }
     return $results;
@@ -342,23 +342,23 @@ class NodeSearch extends ConfigurableSearchPluginBase implements AccessibleInter
     $node_render = $this->entityManager->getViewBuilder('node');
 
     foreach ($languages as $language) {
-      $node = $node->getTranslation($language->id);
+      $node = $node->getTranslation($language->getId());
       // Render the node.
-      $build = $node_render->view($node, 'search_index', $language->id);
+      $build = $node_render->view($node, 'search_index', $language->getId());
 
       unset($build['#theme']);
       $node->rendered = drupal_render($build);
 
-      $text = '<h1>' . String::checkPlain($node->label($language->id)) . '</h1>' . $node->rendered;
+      $text = '<h1>' . String::checkPlain($node->label($language->getId())) . '</h1>' . $node->rendered;
 
       // Fetch extra data normally not visible.
-      $extra = $this->moduleHandler->invokeAll('node_update_index', array($node, $language->id));
+      $extra = $this->moduleHandler->invokeAll('node_update_index', array($node, $language->getId()));
       foreach ($extra as $t) {
         $text .= $t;
       }
 
       // Update index.
-      search_index($node->id(), $this->getPluginId(), $text, $language->id);
+      search_index($node->id(), $this->getPluginId(), $text, $language->getId());
     }
   }
 
@@ -446,7 +446,7 @@ class NodeSearch extends ConfigurableSearchPluginBase implements AccessibleInter
     $language_list = \Drupal::languageManager()->getLanguages(LanguageInterface::STATE_ALL);
     foreach ($language_list as $langcode => $language) {
       // Make locked languages appear special in the list.
-      $language_options[$langcode] = $language->isLocked() ? t('- @name -', array('@name' => $language->name)) : $language->name;
+      $language_options[$langcode] = $language->isLocked() ? t('- @name -', array('@name' => $language->getName())) : $language->getName();
     }
     if (count($language_options) > 1) {
       $form['advanced']['lang-fieldset'] = array(

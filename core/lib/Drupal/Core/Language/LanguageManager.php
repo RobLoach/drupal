@@ -134,7 +134,7 @@ class LanguageManager implements LanguageManagerInterface {
     if (!isset($this->languages)) {
       // No language module, so use the default language only.
       $default = $this->getDefaultLanguage();
-      $this->languages = array($default->id => $default);
+      $this->languages = array($default->getId() => $default);
       // Add the special languages, they will be filtered later if needed.
       $this->languages += $this->getDefaultLockedLanguages($default->getWeight());
     }
@@ -146,11 +146,9 @@ class LanguageManager implements LanguageManagerInterface {
 
     // Add the site's default language if flagged as allowed value.
     if ($flags & LanguageInterface::STATE_SITE_DEFAULT) {
-      $default = isset($default) ? $default : $this->getDefaultLanguage();
-      // Rename the default language. But we do not want to do this globally,
-      // if we're acting on a global object, so clone the object first.
-      $default = clone $default;
-      $default->name = $this->t("Site's default language (@lang_name)", array('@lang_name' => $default->name));
+      // Setup a language to have the defaults, but with overridden name.
+      $default = $this->getDefaultLanguage();
+      $default->setName($this->t("Site's default language (@lang_name)", array('@lang_name' => $default->getName())));
       $filtered_languages[LanguageInterface::LANGCODE_SITE_DEFAULT] = $default;
     }
 
@@ -187,7 +185,7 @@ class LanguageManager implements LanguageManagerInterface {
       return $this->t('None');
     }
     if ($language = $this->getLanguage($langcode)) {
-      return $language->name;
+      return $language->getName();
     }
     if (empty($langcode)) {
       return $this->t('Unknown');

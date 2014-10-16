@@ -94,7 +94,7 @@ class KeyValueEntityStorage extends EntityStorageBase {
    */
   public function doCreate(array $values = array()) {
     // Set default language to site default if not provided.
-    $values += array('langcode' => $this->languageManager->getDefaultLanguage()->id);
+    $values += array('langcode' => $this->languageManager->getDefaultLanguage()->getId());
     $entity = new $this->entityClass($values, $this->entityTypeId);
 
     // @todo This is handled by ContentEntityStorageBase, which assumes
@@ -133,7 +133,7 @@ class KeyValueEntityStorage extends EntityStorageBase {
    * {@inheritdoc}
    */
   public function loadRevision($revision_id) {
-    return FALSE;
+    return NULL;
   }
 
   /**

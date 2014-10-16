@@ -706,14 +706,14 @@ function drupal_http_header_attributes(array $attributes = array()) {
  *     For authenticated users, the "active" class will be calculated on the
  *     client (through JavaScript), only data- attributes are added to links to
  *     prevent breaking the render cache. The JavaScript is added in
- *     system_page_build().
+ *     system_page_attachments().
  *   - Additional $options elements used by the url() function.
  *
  * @return string
  *   An HTML string containing a link to the given path.
  *
  * @see _url()
- * @see system_page_build()
+ * @see system_page_attachments()
  * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.0.
  *   Use \Drupal::l($text, $url) where $url is an instance of
  *   \Drupal\Core\Url. To build a \Drupal\Core\Url object for internal paths
@@ -752,7 +752,7 @@ function _l($text, $path, array $options = array()) {
   // Add a hreflang attribute if we know the language of this link's url and
   // hreflang has not already been set.
   if (!empty($variables['options']['language']) && !isset($variables['options']['attributes']['hreflang'])) {
-    $variables['options']['attributes']['hreflang'] = $variables['options']['language']->id;
+    $variables['options']['attributes']['hreflang'] = $variables['options']['language']->getId();
   }
 
   // Set the "active" class if the 'set_active_class' option is not empty.
@@ -917,8 +917,7 @@ function _drupal_add_html_head_link($attributes, $header = FALSE) {
  * $options['preprocess'] should be only set to TRUE when a file is required for
  * all typical visitors and most pages of a site. It is critical that all
  * preprocessed files are added unconditionally on every page, even if the
- * files do not happen to be needed on a page. This is normally done by calling
- * _drupal_add_css() in a hook_page_build() implementation.
+ * files do not happen to be needed on a page.
  *
  * Non-preprocessed files should only be added to the page when they are
  * actually needed.
@@ -966,8 +965,8 @@ function _drupal_add_html_head_link($attributes, $header = FALSE) {
  *     page of the website for users for whom it is present at all. This
  *     defaults to FALSE. It is set to TRUE for stylesheets added via module and
  *     theme .info.yml files. Modules that add stylesheets within
- *     hook_page_build() implementations, or from other code that ensures that
- *     the stylesheet is added to all website pages, should also set this flag
+ *     hook_page_attachments() implementations, or from other code that ensures
+ *     that the stylesheet is added to all website pages, should also set this flag
  *     to TRUE. All stylesheets within the same group that have the 'every_page'
  *     flag set to TRUE and do not have 'preprocess' set to FALSE are aggregated
  *     together into a single aggregate file, and that aggregate file can be
@@ -1367,8 +1366,7 @@ function drupal_clean_id_identifier($id) {
  * $options['preprocess'] should be only set to TRUE when a file is required for
  * all typical visitors and most pages of a site. It is critical that all
  * preprocessed files are added unconditionally on every page, even if the
- * files are not needed on a page. This is normally done by calling
- * _drupal_add_js() in a hook_page_build() implementation.
+ * files are not needed on a page.
  *
  * Non-preprocessed files should only be added to the page when they are
  * actually needed.
@@ -1411,9 +1409,9 @@ function drupal_clean_id_identifier($id) {
  *     page of the website for users for whom it is present at all. This
  *     defaults to FALSE. It is set to TRUE for JavaScript files that are added
  *     via module and theme .info.yml files. Modules that add JavaScript within
- *     hook_page_build() implementations, or from other code that ensures that
- *     the JavaScript is added to all website pages, should also set this flag
- *     to TRUE. All JavaScript files within the same group and that have the
+ *     hook_page_attachments() implementations, or from other code that ensures
+ *     that the JavaScript is added to all website pages, should also set this
+ *     flag to TRUE. All JavaScript files within the same group and that have the
  *     'every_page' flag set to TRUE and do not have 'preprocess' set to FALSE
  *     are aggregated together into a single aggregate file, and that aggregate
  *     file can be reused across a user's entire site visit, leading to faster
@@ -1525,7 +1523,7 @@ function _drupal_add_js($data = NULL, $options = NULL) {
             'currentPath' => $current_path,
             'currentPathIsAdmin' => $current_path_is_admin,
             'isFront' => drupal_is_front_page(),
-            'currentLanguage' => \Drupal::languageManager()->getCurrentLanguage(LanguageInterface::TYPE_URL)->id,
+            'currentLanguage' => \Drupal::languageManager()->getCurrentLanguage(LanguageInterface::TYPE_URL)->getId(),
           );
           if (!empty($current_query)) {
             ksort($current_query);
@@ -1712,13 +1710,13 @@ function drupal_get_js($scope = 'header', $javascript = NULL, $skip_alter = FALS
  *
  * Example:
  * @code
- * function module1_page_build(&$page) {
+ * function module1_page_attachments(&$page) {
  *   $page['#attached']['js'][] = array(
  *     'type' => 'setting',
  *     'data' => array('foo' => array('a', 'b', 'c')),
  *   );
  * }
- * function module2_page_build(&$page) {
+ * function module2_page_attachments(&$page) {
  *   $page['#attached']['js'][] = array(
  *     'type' => 'setting',
  *     'data' => array('foo' => array('d')),
@@ -2443,7 +2441,10 @@ function drupal_pre_render_links($element) {
  * @return array
  *   The processed render array for the page.
  *
- * @see hook_page_alter()
+ * @see hook_page_attachments()
+ * @see hook_page_attachments_alter()
+ * @see hook_page_top()
+ * @see hook_page_bottom()
  * @see element_info()
  */
 function drupal_prepare_page($page) {
@@ -2462,15 +2463,59 @@ function drupal_prepare_page($page) {
     $page = element_info('page');
   }
 
-  // Modules can add elements to $page as needed in hook_page_build().
-  foreach (\Drupal::moduleHandler()->getImplementations('page_build') as $module) {
-    $function = $module . '_page_build';
-    $function($page);
+  // Modules can add attachments.
+  $attachments = [];
+  foreach (\Drupal::moduleHandler()->getImplementations('page_attachments') as $module) {
+    $function = $module . '_page_attachments';
+    $function($attachments);
   }
-  // Modules alter the $page as needed. Blocks are populated into regions like
-  // 'sidebar_first', 'footer', etc.
-  \Drupal::moduleHandler()->alter('page', $page);
-  \Drupal::theme()->alter('page', $page);
+  if (array_diff(array_keys($attachments), ['#attached', '#post_render_cache']) !== []) {
+    throw new \LogicException('Only #attached and #post_render_cache may be set in hook_page_attachments().');
+  }
+  // Modules and themes can alter page attachments.
+  \Drupal::moduleHandler()->alter('page_attachments', $attachments);
+  \Drupal::theme()->alter('page_attachments', $attachments);
+  if (array_diff(array_keys($attachments), ['#attached', '#post_render_cache']) !== []) {
+    throw new \LogicException('Only #attached and #post_render_cache may be set in hook_page_attachments_alter().');
+  }
+  if (isset($attachments['#attached'])) {
+    $page['#attached'] = $attachments['#attached'];
+  }
+  if (isset($attachments['#post_render_cache'])) {
+    $page['#post_render_cache'] = $attachments['#post_render_cache'];
+  }
+
+  // Modules can add renderable arrays to the top and bottom of the page.
+  $pseudo_page_top = [];
+  $pseudo_page_bottom = [];
+  foreach (\Drupal::moduleHandler()->getImplementations('page_top') as $module) {
+    $function = $module . '_page_top';
+    $function($pseudo_page_top);
+  }
+  foreach (\Drupal::moduleHandler()->getImplementations('page_bottom') as $module) {
+    $function = $module . '_page_bottom';
+    $function($pseudo_page_bottom);
+  }
+  if (!empty($pseudo_page_top)) {
+    $page['page_top'] = $pseudo_page_top;
+  }
+  if (!empty($pseudo_page_bottom)) {
+    $page['page_bottom'] = $pseudo_page_bottom;
+  }
+
+  // @todo Clean this up as part of https://www.drupal.org/node/2352155.
+  if (\Drupal::moduleHandler()->moduleExists('block')) {
+    _block_page_build($page);
+    // Find all non-empty page regions, and add a theme wrapper function that
+    // allows them to be consistently themed.
+    $regions = system_region_list(\Drupal::theme()->getActiveTheme()->getName());
+    foreach (array_keys($regions) as $region) {
+      if (!empty($page[$region])) {
+        $page[$region]['#theme_wrappers'][] = 'region';
+        $page[$region]['#region'] = $region;
+      }
+    }
+  }
 
   // If no module has taken care of the main content, add it to the page now.
   // This allows the site to still be usable even if no modules that
@@ -2541,7 +2586,8 @@ function drupal_prepare_page($page) {
  *     the defaults for this type of element, defined in hook_element_info(),
  *     are merged into the array. #defaults_loaded is set by functions that
  *     process render arrays and call element_info() before passing the array to
- *     drupal_render(), such as form_builder() in the Form API.
+ *     drupal_render(), such as \Drupal::formBuilder()->doBuildForm() in the
+ *     Form API.
  *   - If this element has an array of #pre_render functions defined, they are
  *     called sequentially to modify the element before rendering. After all the
  *     #pre_render functions have been called, #printed is checked a second time
@@ -3338,30 +3384,6 @@ function element_get_visible_children(array $elements) {
  */
 function element_set_attributes(array &$element, array $map) {
   Element::setAttributes($element, $map);
-}
-
-/**
- * Returns a list of severity levels, as defined in RFC 3164.
- *
- * @return
- *   Array of the possible severity levels for log messages.
- *
- * @see http://www.ietf.org/rfc/rfc3164.txt
- * @ingroup logging_severity_levels
- *
- * @todo Move this in https://www.drupal.org/node/2267545 in \Drupal\Core\Log.
- */
-function watchdog_severity_levels() {
-  return array(
-    WATCHDOG_EMERGENCY   => t('Emergency'),
-    WATCHDOG_ALERT   => t('Alert'),
-    WATCHDOG_CRITICAL    => t('Critical'),
-    WATCHDOG_ERROR     => t('Error'),
-    WATCHDOG_WARNING => t('Warning'),
-    WATCHDOG_NOTICE  => t('Notice'),
-    WATCHDOG_INFO    => t('Info'),
-    WATCHDOG_DEBUG   => t('Debug'),
-  );
 }
 
 /**

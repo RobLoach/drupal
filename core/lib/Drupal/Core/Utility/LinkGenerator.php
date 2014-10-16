@@ -64,9 +64,9 @@ class LinkGenerator implements LinkGeneratorInterface {
    * For authenticated users, the "active" class will be calculated on the
    * client (through JavaScript), only data- attributes are added to links to
    * prevent breaking the render cache. The JavaScript is added in
-   * system_page_build().
+   * system_page_attachments().
    *
-   * @see system_page_build()
+   * @see system_page_attachments()
    */
   public function generate($text, Url $url) {
     // Performance: avoid Url::toString() needing to retrieve the URL generator
@@ -94,7 +94,7 @@ class LinkGenerator implements LinkGeneratorInterface {
     // Add a hreflang attribute if we know the language of this link's url and
     // hreflang has not already been set.
     if (!empty($variables['options']['language']) && !isset($variables['options']['attributes']['hreflang'])) {
-      $variables['options']['attributes']['hreflang'] = $variables['options']['language']->id;
+      $variables['options']['attributes']['hreflang'] = $variables['options']['language']->getId();
     }
 
     // Set the "active" class if the 'set_active_class' option is not empty.

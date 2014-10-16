@@ -325,6 +325,12 @@ function install_begin_request(&$install_state) {
     ->register('path.matcher', 'Drupal\Core\Path\PathMatcher')
     ->addArgument(new Reference('config.factory'));
 
+  // Register the stream wrapper manager.
+  $container
+    ->register('stream_wrapper_manager', 'Drupal\Core\StreamWrapper\StreamWrapperManager')
+    ->addArgument(new Reference('module_handler'))
+    ->addMethodCall('setContainer', array(new Reference('service_container')));
+
   \Drupal::setContainer($container);
 
   // Determine whether base system services are ready to operate.
@@ -2037,8 +2043,9 @@ function install_check_requirements($install_state) {
         // common configuration on shared hosting, and there is nothing Drupal
         // can do to prevent it. In this situation, having $file also owned by
         // the webserver does not introduce any additional security risk, so we
-        // keep the file in place.
-        if (fileowner($default_file) === fileowner($file)) {
+        // keep the file in place. Additionally, this situation also occurs when
+        // the test runner is being run be different user than the webserver.
+        if (fileowner($default_file) === fileowner($file) || DRUPAL_TEST_IN_CHILD_SITE) {
           $readable = drupal_verify_install_file($file, FILE_READABLE);
           $writable = drupal_verify_install_file($file, FILE_WRITABLE);
           $exists = TRUE;

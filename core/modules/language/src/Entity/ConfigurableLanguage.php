@@ -50,7 +50,7 @@ class ConfigurableLanguage extends ConfigEntityBase implements ConfigurableLangu
    *
    * @var string
    */
-  public $id;
+  protected $id;
 
   /**
    * The human-readable label for the language.
@@ -198,6 +198,15 @@ class ConfigurableLanguage extends ConfigEntityBase implements ConfigurableLangu
    */
   public function getName() {
     return $this->label();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setName($name) {
+    $this->label = $name;
+
+    return $this;
   }
 
   /**

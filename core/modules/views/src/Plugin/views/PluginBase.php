@@ -422,7 +422,7 @@ abstract class PluginBase extends ComponentPluginBase implements ContainerFactor
       if ($id == LanguageInterface::LANGCODE_SITE_DEFAULT) {
         $id = PluginBase::VIEWS_QUERY_LANGUAGE_SITE_DEFAULT;
       }
-      $list[$id] = $this->t($language->name);
+      $list[$id] = $this->t($language->getName());
     }
 
     // Add in negotiated languages, if requested.
@@ -459,14 +459,14 @@ abstract class PluginBase extends ComponentPluginBase implements ContainerFactor
     $manager = \Drupal::languageManager();
 
     // Handle default language.
-    $default = $manager->getDefaultLanguage()->id;
+    $default = $manager->getDefaultLanguage()->getId();
     $changes[PluginBase::VIEWS_QUERY_LANGUAGE_SITE_DEFAULT] = $default;
 
     // Handle negotiated languages.
     $types = $manager->getDefinedLanguageTypesInfo();
     foreach ($types as $id => $type) {
       if (isset($type['name'])) {
-        $changes['***LANGUAGE_' . $id . '***'] = $manager->getCurrentLanguage($id)->id;
+        $changes['***LANGUAGE_' . $id . '***'] = $manager->getCurrentLanguage($id)->getId();
       }
     }
 

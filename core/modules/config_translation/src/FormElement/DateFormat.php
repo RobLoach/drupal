@@ -29,10 +29,10 @@ class DateFormat implements ElementInterface {
     $format = $this->t('Displayed as %date_format', array('%date_format' => \Drupal::service('date.formatter')->format(REQUEST_TIME, 'custom', $value)));
     return array(
       '#type' => 'textfield',
-      '#title' => $this->t($definition->getLabel()) . '<span class="visually-hidden"> (' . $language->name . ')</span>',
+      '#title' => $this->t($definition->getLabel()) . '<span class="visually-hidden"> (' . $language->getName() . ')</span>',
       '#description' => $description,
       '#default_value' => $value,
-      '#attributes' => array('lang' => $language->id),
+      '#attributes' => array('lang' => $language->getId()),
       '#field_suffix' => ' <div class="edit-date-format-suffix"><small id="edit-date-format-suffix">' . $format . '</small></div>',
       '#ajax' => array(
         'callback' => 'Drupal\config_translation\FormElement\DateFormat::ajaxSample',
