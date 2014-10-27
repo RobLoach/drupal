@@ -9,15 +9,15 @@ namespace Drupal\filter\Tests;
 
 use Drupal\Component\Utility\Html;
 use Drupal\Component\Utility\String;
-use Drupal\simpletest\DrupalUnitTestBase;
-use Drupal\filter\FilterBag;
+use Drupal\filter\FilterPluginCollection;
+use Drupal\simpletest\KernelTestBase;
 
 /**
  * Tests Filter module filters individually.
  *
  * @group filter
  */
-class FilterUnitTest extends DrupalUnitTestBase {
+class FilterUnitTest extends KernelTestBase {
 
   /**
    * Modules to enable.
@@ -36,7 +36,7 @@ class FilterUnitTest extends DrupalUnitTestBase {
     $this->installConfig(array('system'));
 
     $manager = $this->container->get('plugin.manager.filter');
-    $bag = new FilterBag($manager, array());
+    $bag = new FilterPluginCollection($manager, array());
     $this->filters = $bag->getAll();
   }
 

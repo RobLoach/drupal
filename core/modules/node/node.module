@@ -30,7 +30,7 @@ use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
 use Drupal\Core\Entity\Display\EntityFormDisplayInterface;
 use Drupal\Core\Template\Attribute;
 use Drupal\file\Entity\File;
-use Drupal\language\Entity\ConfigurableLanguage;
+use Drupal\language\ConfigurableLanguageInterface;
 use Drupal\block\Entity\Block;
 use Drupal\Core\Session\AccountInterface;
 
@@ -570,9 +570,9 @@ function node_theme_suggestions_node(array $variables) {
  *
  * Default template: node.html.twig.
  *
- * Most themes utilize their own copy of node.html.twig. The default is located
- * inside "/core/modules/node/templates/node.html.twig". Look in there for the full
- * list of variables.
+ * Most themes use their own copy of node.html.twig. The default is located
+ * inside "/core/modules/node/templates/node.html.twig". Look in there for the
+ * full list of variables.
  *
  * @param array $variables
  *   An associative array containing:
@@ -587,9 +587,9 @@ function template_preprocess_node(&$variables) {
   $variables['node'] = $variables['elements']['#node'];
   /** @var \Drupal\node\NodeInterface $node */
   $node = $variables['node'];
-  $variables['date'] = drupal_render($variables['elements']['created'], TRUE);
+  $variables['date'] = drupal_render($variables['elements']['created']);
   unset($variables['elements']['created']);
-  $variables['author_name'] = drupal_render($variables['elements']['uid'], TRUE);
+  $variables['author_name'] = drupal_render($variables['elements']['uid']);
   unset($variables['elements']['uid']);
 
   $variables['url'] = $node->url('canonical', array(
@@ -1400,7 +1400,7 @@ function node_modules_uninstalled($modules) {
 /**
  * Implements hook_ENTITY_TYPE_delete() for 'configurable_language'.
  */
-function node_configurable_language_delete(ConfigurableLanguage $language) {
+function node_configurable_language_delete(ConfigurableLanguageInterface $language) {
   // On nodes with this language, unset the language.
   \Drupal::entityManager()->getStorage('node')->clearRevisionsLanguage($language);
 }

@@ -55,9 +55,9 @@ class DefaultHtmlFragmentRenderer implements HtmlFragmentRendererInterface {
     // Build the HtmlPage object.
     $page = new HtmlPage('', array(), $fragment->getTitle());
     $page = $this->preparePage($page, $page_array);
-    $page->setBodyTop(drupal_render($page_array['page_top']));
-    $page->setBodyBottom(drupal_render($page_array['page_bottom']));
-    $page->setContent(drupal_render($page_array));
+    $page->setBodyTop(drupal_render_root($page_array['page_top']));
+    $page->setBodyBottom(drupal_render_root($page_array['page_bottom']));
+    $page->setContent(drupal_render_root($page_array));
     $page->setStatusCode($status_code);
 
     drupal_process_attached($page_array);
@@ -108,15 +108,6 @@ class DefaultHtmlFragmentRenderer implements HtmlFragmentRendererInterface {
     $html_attributes['dir'] = $language_interface->getDirection();
 
     $this->setDefaultMetaTags($page);
-
-    // @todo: collect feed links from #attached rather than a static once
-    // http://drupal.org/node/2256365 is completed.
-    foreach (drupal_get_feeds() as $feed) {
-      // Force the URL to be absolute, for consistency with other <link> tags
-      // output by Drupal.
-      $link = new FeedLinkElement($feed['title'], _url($feed['url'], array('absolute' => TRUE)));
-      $page->addLinkElement($link);
-    }
 
     // Add libraries and CSS used by this theme.
     $active_theme = \Drupal::theme()->getActiveTheme();
