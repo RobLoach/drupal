@@ -186,7 +186,7 @@ class SqlContentEntityStorage extends ContentEntityStorageBase implements SqlEnt
     $translatable = $this->entityType->isTranslatable();
     if ($translatable) {
       $this->dataTable = $this->entityType->getDataTable() ?: $this->entityTypeId . '_field_data';
-      $this->langcodeKey = $this->entityType->getKey('langcode') ?: 'langcode';
+      $this->langcodeKey = $this->entityType->getKey('langcode');
       $this->defaultLangcodeKey = $this->entityType->getKey('default_langcode') ?: 'default_langcode';
     }
     if ($revisionable && $translatable) {
@@ -682,7 +682,7 @@ class SqlContentEntityStorage extends ContentEntityStorageBase implements SqlEnt
 
         // Field values in default language are stored with
         // LanguageInterface::LANGCODE_DEFAULT as key.
-        $langcode = empty($values['default_langcode']) ? $values['langcode'] : LanguageInterface::LANGCODE_DEFAULT;
+        $langcode = empty($values['default_langcode']) ? $values[$this->langcodeKey] : LanguageInterface::LANGCODE_DEFAULT;
         $translations[$id][$langcode] = TRUE;
 
 
@@ -823,7 +823,7 @@ class SqlContentEntityStorage extends ContentEntityStorageBase implements SqlEnt
 
       // Compare revision ID of the base and revision table, if equal then this
       // is the default revision.
-      $query->addExpression('base.' . $this->revisionKey . ' = revision.' . $this->revisionKey, 'isDefaultRevision');
+      $query->addExpression('CASE base.' . $this->revisionKey . ' WHEN revision.' . $this->revisionKey . ' THEN 1 ELSE 0 END', 'isDefaultRevision');
     }
 
     $query->fields('base', $entity_fields);
@@ -1145,8 +1145,8 @@ class SqlContentEntityStorage extends ContentEntityStorageBase implements SqlEnt
       $table_name = $this->dataTable;
     }
     $record = $this->mapToStorageRecord($entity, $table_name);
-    $record->langcode = $entity->language()->getId();
-    $record->default_langcode = intval($record->langcode == $entity->getUntranslated()->language()->getId());
+    $record->{$this->langcodeKey} = $entity->language()->getId();
+    $record->default_langcode = intval($record->{$this->langcodeKey} == $entity->getUntranslated()->language()->getId());
     return $record;
   }
 
@@ -1198,7 +1198,7 @@ class SqlContentEntityStorage extends ContentEntityStorageBase implements SqlEnt
   /**
    * {@inheritdoc}
    */
-  public function getQueryServiceName() {
+  protected function getQueryServiceName() {
     return 'entity.query.sql';
   }
 
@@ -1715,7 +1715,12 @@ class SqlContentEntityStorage extends ContentEntityStorageBase implements SqlEnt
 
     if ($table_mapping->requiresDedicatedTableStorage($storage_definition)) {
       $is_deleted = $this->storageDefinitionIsDeleted($storage_definition);
-      $table_name = $table_mapping->getDedicatedDataTableName($storage_definition, $is_deleted);
+      if ($this->entityType->isRevisionable()) {
+        $table_name = $table_mapping->getDedicatedRevisionTableName($storage_definition, $is_deleted);
+      }
+      else {
+        $table_name = $table_mapping->getDedicatedDataTableName($storage_definition, $is_deleted);
+      }
       $query = $this->database->select($table_name, 't');
       $or = $query->orConditionGroup();
       foreach ($storage_definition->getColumns() as $column_name => $data) {
@@ -1754,7 +1759,11 @@ class SqlContentEntityStorage extends ContentEntityStorageBase implements SqlEnt
       if ($as_bool) {
         $query->range(0, 1);
       }
-      $count = $query->countQuery()->execute()->fetchField();
+      else {
+        // Otherwise count the number of rows.
+        $query = $query->countQuery();
+      }
+      $count = $query->execute()->fetchField();
     }
     return $as_bool ? (bool) $count : (int) $count;
   }

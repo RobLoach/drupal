@@ -5,14 +5,20 @@
  * Add language handling functionality to Drupal.
  */
 
+use Drupal\Core\Access\AccessResult;
+use Drupal\Core\Entity\ContentEntityFormInterface;
+use Drupal\Core\Entity\EntityFormInterface;
+use Drupal\Core\Field\FieldDefinitionInterface;
+use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Language\LanguageInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
-use Drupal\language\Entity\ConfigurableLanguage;
+use Drupal\Core\Session\AccountInterface;
+use Drupal\language\ConfigurableLanguageInterface;
+use Drupal\language\Entity\ContentLanguageSettings;
 use Drupal\language\Plugin\LanguageNegotiation\LanguageNegotiationUI;
 use Drupal\language\Plugin\LanguageNegotiation\LanguageNegotiationUrl;
 use Drupal\language\Plugin\LanguageNegotiation\LanguageNegotiationUrlFallback;
-use Drupal\node\NodeTypeInterface;
 
 /**
  * Implements hook_help().
@@ -63,7 +69,7 @@ function language_help($route_name, RouteMatchInterface $route_match) {
       return $output;
 
     case 'language.negotiation_browser':
-      $output = '<p>' . t('Browsers use different language codes to refer to the same languages. You can add and edit mappings from browser language codes to the <a href="!configure-languages">languages used</a>.', array('!configure-languages' => \Drupal::url('language.admin_overview'))) . '</p>';
+      $output = '<p>' . t('Browsers use different language codes to refer to the same languages. Internally, a best effort is made to determine the correct language based on the code that the browser sends. You can add and edit additional mappings from browser language codes to <a href="!configure-languages">site languages</a>.', array('!configure-languages' => \Drupal::url('language.admin_overview'))) . '</p>';
       return $output;
 
     case 'language.negotiation_selected':
@@ -171,97 +177,58 @@ function language_process_language_select($element) {
 }
 
 /**
- * Submit handler for the forms that have a language_configuration element.
+ * Implements hook_entity_base_field_info_alter().
  */
-function language_configuration_element_submit(&$form, FormStateInterface $form_state) {
-  // Iterate through all the language_configuration elements and save their
-  // values.
-  if ($language = $form_state->get('language')) {
-    foreach ($language as $element_name => $values) {
-      language_save_default_configuration($values['entity_type'], $values['bundle'],  $form_state->getValue($element_name));
+function language_entity_base_field_info_alter(&$fields) {
+  foreach ($fields as $definition) {
+    // Set configurable form display for language fields with display options.
+    if ($definition->getType() == 'language') {
+      foreach (array('form', 'view') as $type)  {
+        if ($definition->getDisplayOptions($type)) {
+          // The related configurations will be purged manually on Language
+          // module uninstallation. @see language_modules_uninstalled().
+          $definition->setDisplayConfigurable($type, TRUE);
+        }
+      }
     }
   }
 }
 
 /**
- * Saves a language configuration that is attached to an entity type and bundle.
- *
- * @param string $entity_type
- *   A string representing the entity type.
- * @param string $bundle
- *   A string representing the bundle.
- * @param array $values
- *   An array holding the values to be saved having the following keys:
- *   - langcode: the language code.
- *   - language_show: if the language element should be hidden or not.
+ * Submit handler for the forms that have a language_configuration element.
  */
-function language_save_default_configuration($entity_type, $bundle, $values = array()) {
-  \Drupal::config('language.settings')->set(language_get_default_configuration_settings_key($entity_type, $bundle), array('langcode' => $values['langcode'], 'language_show' => $values['language_show']))->save();
-}
-
-/**
- * Returns the language configuration stored for an entity type and bundle.
- *
- * @param string $entity_type
- *   A string representing the entity type.
- * @param string $bundle
- *   A string representing the bundle.
- *
- * @return array
- *   An array with the following keys:
- *   - langcode: the language code.
- *   - language_show: if the language element is hidden or not.
- */
-function language_get_default_configuration($entity_type, $bundle) {
-  $configuration = \Drupal::config('language.settings')->get(language_get_default_configuration_settings_key($entity_type, $bundle));
-  if (is_null($configuration)) {
-    $configuration = array();
+function language_configuration_element_submit(&$form, FormStateInterface $form_state) {
+  // Iterate through all the language_configuration elements and save their
+  // values.
+  // In case we are editing a bundle, we must check the new bundle name,
+  // because e.g. hook_ENTITY_update fired before.
+  if ($language = $form_state->get('language')) {
+    foreach ($language as $element_name => $values) {
+      $entity_type_id = $values['entity_type'];
+      $bundle = $values['bundle'];
+      $form_object = $form_state->getFormObject();
+      if ($form_object instanceof EntityFormInterface && !$form_object->getEntity()->isNew() && in_array($form_object->getOperation(), ['default', 'edit'])) {
+        /** @var EntityFormInterface $form_object */
+        $entity = $form_object->getEntity();
+        if ($entity->getEntityType()->getBundleOf()) {
+          $bundle = $entity->id();
+        }
+      }
+      $config = ContentLanguageSettings::loadByEntityTypeBundle($entity_type_id, $bundle);
+      $config->setDefaultLangcode($form_state->getValue(array($element_name, 'langcode')));
+      $config->setLanguageAlterable($form_state->getValue(array($element_name, 'language_alterable')));
+      $config->save();
+    }
   }
-  $configuration += array('langcode' => LanguageInterface::LANGCODE_SITE_DEFAULT, 'language_show' => FALSE);
-  return $configuration;
 }
 
 /**
- * Clears the default language configuration for an entity type and bundle.
- *
- * @param string $entity_type
- *   A string representing the entity type.
- * @param string $bundle
- *   A string representing the bundle.
+ * Implements hook_entity_bundle_rename().
  */
-function language_clear_default_configuration($entity_type, $bundle) {
-  \Drupal::config('language.settings')->clear(language_get_default_configuration_settings_key($entity_type, $bundle))->save();
-}
-
-/**
- * Returns the root name of the variables used to store the configuration.
- *
- * Based on the entity type and bundle, the variables used to store the
- * configuration will have a common root name.
- *
- * @param string $entity_type
- *   A string representing the entity type.
- * @param string $bundle
- *   A string representing the bundle.
- *
- * @return string
- *   The root name of the variables.
- */
-function language_get_default_configuration_settings_key($entity_type, $bundle) {
-  // Replace all the characters that are not letters, numbers or "_" with "_".
-  $entity_type = preg_replace('/[^0-9a-zA-Z_]/', "_", $entity_type);
-  $bundle = preg_replace('/[^0-9a-zA-Z_]/', "_", $bundle);
-  return 'entities.' . $entity_type . '.' . $bundle . '.language.default_configuration';
-}
-
-/**
- * Implements hook_ENTITY_TYPE_update() for node_type entities.
- */
-function language_node_type_update(NodeTypeInterface $type) {
-  if ($type->original->id() != $type->id()) {
-    language_save_default_configuration('node', $type->id(), language_get_default_configuration('node', $type->original->id()));
-    language_clear_default_configuration('node', $type->original->id());
-  }
+function language_entity_bundle_rename($entity_type_id, $bundle_old, $bundle_new) {
+  ContentLanguageSettings::loadByEntityTypeBundle($entity_type_id, $bundle_old)
+    ->setTargetBundle($bundle_new)
+    ->save();
 }
 
 /**
@@ -276,15 +243,11 @@ function language_node_type_update(NodeTypeInterface $type) {
  *   The language code.
  */
 function language_get_default_langcode($entity_type, $bundle) {
-  $configuration = language_get_default_configuration($entity_type, $bundle);
-
-  if (!isset($configuration['langcode'])) {
-    $configuration['langcode'] = LanguageInterface::LANGCODE_SITE_DEFAULT;
-  }
+  $configuration = ContentLanguageSettings::loadByEntityTypeBundle($entity_type, $bundle);
 
   $default_value = NULL;
   $language_interface = \Drupal::languageManager()->getCurrentLanguage();
-  switch ($configuration['langcode']) {
+  switch ($configuration->getDefaultLangcode()) {
     case LanguageInterface::LANGCODE_SITE_DEFAULT:
       $default_value = \Drupal::languageManager()->getDefaultLanguage()->getId();
       break;
@@ -310,7 +273,7 @@ function language_get_default_langcode($entity_type, $bundle) {
 
   // If we still do not have a default value, just return the value stored in
   // the configuration; it has to be an actual language code.
-  return $configuration['langcode'];
+  return $configuration->getDefaultLangcode();
 }
 
 /**
@@ -406,6 +369,19 @@ function language_modules_installed($modules) {
     $negotiator->updateConfiguration(array());
     $negotiator->purgeConfiguration();
   }
+  else {
+    // In language_entity_base_field_info_alter() we are altering view/form
+    // display definitions to make language fields display configurable. Since
+    // this is not a hard dependency, and thus is not detected by the config
+    // system, we have to clean up the related values manually.
+    foreach (array('entity_view_display', 'entity_form_display') as $key) {
+      $displays = \Drupal::entityManager()->getStorage($key)->loadMultiple();
+      /** @var \Drupal\Core\Entity\Display\EntityDisplayInterface $display */
+      foreach ($displays as $display) {
+        $display->save();
+      }
+    }
+  }
 }
 
 /**
@@ -418,7 +394,7 @@ function language_modules_uninstalled($modules) {
 /**
  * Implements hook_ENTITY_TYPE_insert() for 'configurable_language'.
  */
-function language_configurable_language_insert(ConfigurableLanguage $language) {
+function language_configurable_language_insert(ConfigurableLanguageInterface $language) {
   if ($language->isLocked()) {
     return;
   }
@@ -432,7 +408,7 @@ function language_configurable_language_insert(ConfigurableLanguage $language) {
 /**
  * Implements hook_ENTITY_TYPE_delete() for 'configurable_language'.
  */
-function language_configurable_language_delete(ConfigurableLanguage $language) {
+function language_configurable_language_delete(ConfigurableLanguageInterface $language) {
   // Remove language from language prefix list.
   $prefixes = language_negotiation_url_prefixes();
   unset($prefixes[$language->id()]);
@@ -505,6 +481,25 @@ function language_form_system_regional_settings_alter(&$form, FormStateInterface
 }
 
 /**
+ * Implements hook_form_alter().
+ */
+function language_form_alter(&$form, FormStateInterface $form_state) {
+  // Content entity forms may have added a langcode field. But content language
+  // configuration should decide if it should be exposed or not in the forms.
+  $form_object = $form_state->getFormObject();
+  if ($form_object instanceof ContentEntityFormInterface) {
+    /** @var \Drupal\Core\Entity\ContentEntityInterface $entity */
+    $entity = $form_object->getEntity();
+    $entity_type = $entity->getEntityType();
+    $langcode_key = $entity_type->getKey('langcode');
+    if (isset($form[$langcode_key]) && $entity_type->isTranslatable()) {
+      $language_configuration = ContentLanguageSettings::loadByEntityTypeBundle($entity->getEntityTypeId(), $entity->bundle());
+      $form[$langcode_key]['#access'] = $language_configuration->isLanguageAlterable();
+    }
+  }
+}
+
+/**
  * Form submission handler for system_regional_settings().
  *
  * @see language_form_system_regional_settings_alter()
@@ -519,4 +514,17 @@ function language_system_regional_settings_form_submit($form, FormStateInterface
 function language_field_info_alter(&$info) {
   // Change the default behavior of language field.
   $info['language']['class'] = '\Drupal\language\DefaultLanguageItem';
+}
+
+/**
+ * Implements hook_entity_field_access()
+ */
+function language_entity_field_access($operation, FieldDefinitionInterface $field_definition, AccountInterface $account, FieldItemListInterface $items = NULL) {
+  $langcode_key = $items->getEntity()->getEntityType()->getKey('langcode');
+  if ($field_definition->getName() == $langcode_key) {
+    $entity = $items->getEntity();
+    $config = ContentLanguageSettings::loadByEntityTypeBundle($entity->getEntityTypeId(), $entity->bundle());
+    return AccessResult::forbiddenIf(!$config->isLanguageAlterable());
+  }
+  return AccessResult::neutral();
 }

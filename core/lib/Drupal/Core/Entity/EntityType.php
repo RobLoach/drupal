@@ -236,7 +236,8 @@ class EntityType implements EntityTypeInterface {
     // Ensure defaults.
     $this->entity_keys += array(
       'revision' => '',
-      'bundle' => ''
+      'bundle' => '',
+      'langcode' => '',
     );
     $this->handlers += array(
       'access' => 'Drupal\Core\Entity\EntityAccessControlHandler',
@@ -678,6 +679,16 @@ class EntityType implements EntityTypeInterface {
    */
   public function getListCacheTags() {
     return $this->list_cache_tags;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getConfigDependencyKey() {
+    // Return 'content' for the default implementation as important distinction
+    // is that dependencies on other configuration entities are hard
+    // dependencies and have to exist before creating the dependent entity.
+    return 'content';
   }
 
 }

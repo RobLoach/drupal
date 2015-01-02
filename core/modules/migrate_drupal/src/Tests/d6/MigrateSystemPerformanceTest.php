@@ -36,11 +36,12 @@ class MigrateSystemPerformanceTest extends MigrateDrupalTestBase {
    * Tests migration of system (Performance) variables to system.performance.yml.
    */
   public function testSystemPerformance() {
-    $config = \Drupal::config('system.performance');
+    $config = $this->config('system.performance');
     $this->assertIdentical($config->get('css.preprocess'), FALSE);
     $this->assertIdentical($config->get('js.preprocess'), FALSE);
     $this->assertIdentical($config->get('cache.page.max_age'), 0);
     $this->assertIdentical($config->get('cache.page.use_internal'), TRUE);
+    $this->assertIdentical($config->get('response.gzip'), TRUE);
   }
 
 }

@@ -11,8 +11,11 @@ use Drupal\Component\Utility\Xss;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Url;
 use Drupal\Component\Utility\String;
+use Drupal\Core\Extension\Extension;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\taxonomy\Entity\Vocabulary;
+use Symfony\Component\Routing\Exception\RouteNotFoundException;
 
 /**
  * Implements hook_help().
@@ -94,38 +97,6 @@ function forum_theme() {
       'variables' => array('topic' => NULL),
     ),
   );
-}
-
-/**
- * Implements hook_menu_local_tasks().
- */
-function forum_menu_local_tasks(&$data, $route_name) {
-  // Add action link to 'node/add/forum' on 'forum' sub-pages.
-  if (in_array($route_name, array('forum.index', 'forum.page'))) {
-    $forum_term = \Drupal::routeMatch()->getParameter('taxonomy_term');
-    $vid = \Drupal::config('forum.settings')->get('vocabulary');
-    $links = array();
-    // Loop through all bundles for forum taxonomy vocabulary field.
-    $field_map = \Drupal::entityManager()->getFieldMap();
-    foreach ($field_map['node']['taxonomy_forums']['bundles'] as $type) {
-      if (\Drupal::entityManager()->getAccessControlHandler('node')->createAccess($type)) {
-        $links[$type] = array(
-          '#theme' => 'menu_local_action',
-          '#link' => array(
-            'title' => t('Add new @node_type', array('@node_type' => entity_load('node_type', $type)->label())),
-            'url' => Url::fromRoute('node.add', ['node_type' => $type]),
-          ),
-        );
-        if ($forum_term && $forum_term->bundle() == $vid) {
-          // We are viewing a forum term (specific forum), append the tid to the
-          // url.
-          $links[$type]['#link']['localized_options']['query']['forum_id'] = $forum_term->id();
-        }
-      }
-    }
-    $data['actions'] += $links;
-  }
-  // @todo Bring back functionality in https://www.drupal.org/node/1853072.
 }
 
 /**
@@ -597,7 +568,7 @@ function template_preprocess_forum_list(&$variables) {
   // Sanitize each forum so that the template can safely print the data.
   foreach ($variables['forums'] as $id => $forum) {
     $variables['forums'][$id]->description = Xss::filterAdmin($forum->description->value);
-    $variables['forums'][$id]->link = $forum->url();
+    $variables['forums'][$id]->link = forum_uri($forum);
     $variables['forums'][$id]->name = String::checkPlain($forum->label());
     $variables['forums'][$id]->is_container = !empty($forum->forum_container->value);
     $variables['forums'][$id]->zebra = $row % 2 == 0 ? 'odd' : 'even';
@@ -690,4 +661,64 @@ function template_preprocess_forum_submitted(&$variables) {
     $variables['author'] = drupal_render($username);
   }
   $variables['time'] = isset($variables['topic']->created) ? \Drupal::service('date.formatter')->formatInterval(REQUEST_TIME - $variables['topic']->created) : '';
+}
+
+/**
+ * Implements hook_system_info_alter().
+ *
+ * Prevents forum module from being uninstalled whilst any forum nodes exist
+ * or there are any terms in the forum vocabulary.
+ */
+function forum_system_info_alter(&$info, Extension $file, $type) {
+  // It is not safe use the entity query service during maintenance mode.
+  if ($type == 'module' && !defined('MAINTENANCE_MODE') && $file->getName() == 'forum') {
+    $factory = \Drupal::service('entity.query');
+    $nodes = $factory->get('node')
+      ->condition('type', 'forum')
+      ->accessCheck(FALSE)
+      ->range(0, 1)
+      ->execute();
+    if (!empty($nodes)) {
+      $info['required'] = TRUE;
+      $info['explanation'] = t('To uninstall Forum first delete all <em>Forum</em> content.');
+    }
+    $vid = \Drupal::config('forum.settings')->get('vocabulary');
+    $terms = $factory->get('taxonomy_term')
+      ->condition('vid', $vid)
+      ->accessCheck(FALSE)
+      ->range(0, 1)
+      ->execute();
+    if (!empty($terms)) {
+      $vocabulary = Vocabulary::load($vid);
+      $info['required'] = TRUE;
+      try {
+        if (!empty($info['explanation'])) {
+          if ($vocabulary->access('view')) {
+            $info['explanation'] = t('To uninstall Forum first delete all <em>Forum</em> content and <a href="!url">%vocabulary</a> terms.', [
+              '%vocabulary' => $vocabulary->label(),
+              '!url' => $vocabulary->url('overview-form'),
+            ]);
+          }
+          else {
+            $info['explanation'] = t('To uninstall Forum first delete all <em>Forum</em> content and %vocabulary terms.', [
+              '%vocabulary' => $vocabulary->label()
+            ]);
+          }
+        }
+        else {
+          $info['explanation'] = t('To uninstall Forum first delete all <a href="!url">%vocabulary</a> terms.', [
+            '%vocabulary' => $vocabulary->label(),
+            '!url' => $vocabulary->url('overview-form'),
+          ]);
+        }
+      }
+      catch (RouteNotFoundException $e) {
+        // Route rebuilding might not have occurred before this hook is fired.
+        // Just use an explanation without a link for the time being.
+        $info['explanation'] = t('To uninstall Forum first delete all <em>Forum</em> content and %vocabulary terms.', [
+          '%vocabulary' => $vocabulary->label()
+        ]);
+      }
+    }
+  }
 }

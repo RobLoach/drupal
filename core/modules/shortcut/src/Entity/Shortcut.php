@@ -39,7 +39,8 @@ use Symfony\Component\HttpFoundation\Request;
  *     "id" = "id",
  *     "uuid" = "uuid",
  *     "bundle" = "shortcut_set",
- *     "label" = "title"
+ *     "label" = "title",
+ *     "langcode" = "langcode",
  *   },
  *   links = {
  *     "canonical" = "entity.shortcut.canonical",
@@ -160,7 +161,7 @@ class Shortcut extends ContentEntityBase implements ShortcutInterface {
     // newly created shortcut is *also* added to a shortcut set, so we must
     // invalidate the associated shortcut set's cache tag.
     if (!$update) {
-      Cache::invalidateTags($this->getCacheTag());
+      Cache::invalidateTags($this->getCacheTags());
     }
   }
 
@@ -213,8 +214,15 @@ class Shortcut extends ContentEntityBase implements ShortcutInterface {
       ->setDescription(t('A serialized array of route parameters of this shortcut.'));
 
     $fields['langcode'] = BaseFieldDefinition::create('language')
-      ->setLabel(t('Language code'))
-      ->setDescription(t('The language code of the shortcut.'));
+      ->setLabel(t('Language'))
+      ->setDescription(t('The language code of the shortcut.'))
+      ->setDisplayOptions('view', array(
+        'type' => 'hidden',
+      ))
+      ->setDisplayOptions('form', array(
+        'type' => 'language_select',
+        'weight' => 2,
+      ));
 
     $fields['path'] = BaseFieldDefinition::create('string')
       ->setLabel(t('Path'))
@@ -232,8 +240,8 @@ class Shortcut extends ContentEntityBase implements ShortcutInterface {
   /**
    * {@inheritdoc}
    */
-  public function getCacheTag() {
-    return $this->shortcut_set->entity->getCacheTag();
+  public function getCacheTags() {
+    return $this->shortcut_set->entity->getCacheTags();
   }
 
 }

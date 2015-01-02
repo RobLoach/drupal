@@ -54,7 +54,6 @@
  * - page: Flag for the full page state. Will be true if view_mode is 'full'.
  * - readmore: Flag for more state. Will be true if the teaser content of the
  *   node cannot hold the main body content.
- * - is_front: Flag for front. Will be true when presented on the front page.
  * - logged_in: Flag for authenticated user status. Will be true when the
  *   current user is a logged-in member.
  * - is_admin: Flag for admin user status. Will be true when the current user
@@ -75,7 +74,6 @@
   ]
 %}
 <article{{ attributes.addClass(classes) }}>
-
   <header>
     {{ title_prefix }}
     {% if not page %}
@@ -84,7 +82,6 @@
       </h2>
     {% endif %}
     {{ title_suffix }}
-
     {% if display_submitted %}
       <div class="node__meta">
         {{ author_picture }}
@@ -95,17 +92,11 @@
       </div>
     {% endif %}
   </header>
-
   <div{{ content_attributes.addClass('node__content', 'clearfix') }}>
     {{ content|without('comment', 'links') }}
   </div>
-
   {% if content.links %}
-    <div class="node__links">
-      {{ content.links }}
-    </div>
+    <div class="node__links">{{ content.links }}</div>
   {% endif %}
-
   {{ content.comment }}
-
 </article>

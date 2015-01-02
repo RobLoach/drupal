@@ -103,6 +103,9 @@ class CKEditorTest extends KernelTestBase {
     $this->container->get('plugin.manager.editor')->clearCachedDefinitions();
     $this->ckeditor = $this->container->get('plugin.manager.editor')->createInstance('ckeditor');
     $this->container->get('plugin.manager.ckeditor.plugin')->clearCachedDefinitions();
+    // KernelTestBase::enableModules() unfortunately doesn't invoke
+    // hook_rebuild() just like a "real" Drupal site would. Do it manually.
+    \Drupal::moduleHandler()->invoke('ckeditor', 'rebuild');
     $settings = $editor->getSettings();
     $settings['toolbar']['rows'][0][0]['items'][] = 'Strike';
     $settings['toolbar']['rows'][0][0]['items'][] = 'Format';
@@ -206,6 +209,11 @@ class CKEditorTest extends KernelTestBase {
     $expected_config['format_tags'] = 'p';
     ksort($expected_config);
     $this->assertIdentical($expected_config, $this->ckeditor->getJSSettings($editor), 'Generated JS settings are correct for customized configuration.');
+
+    // Assert that we're robust enough to withstand people messing with State
+    // manually.
+    \Drupal::state()->delete('ckeditor_internal_format_tags:' . $format->id());
+    $this->assertIdentical($expected_config, $this->ckeditor->getJSSettings($editor), 'Even when somebody manually deleted the key-value pair in State with the pre-calculated format_tags setting, it returns "p" — because the <p> tag is always allowed.');
   }
 
   /**
@@ -254,7 +262,11 @@ class CKEditorTest extends KernelTestBase {
     $expected[] = file_create_url('core/modules/ckeditor/tests/modules/ckeditor_test.css');
     $this->assertIdentical($expected, $this->ckeditor->buildContentsCssJSSetting($editor), '"contentsCss" configuration part of JS settings built correctly while a hook_ckeditor_css_alter() implementation exists.');
 
-    // @todo test coverage for _ckeditor_theme_css(), by including a custom theme in this test with a "ckeditor_stylesheets" entry in its .info file.
+    // Enable the Bartik theme, which specifies a CKEditor stylesheet.
+    \Drupal::service('theme_handler')->install(['bartik']);
+    $this->config('system.theme')->set('default', 'bartik')->save();
+    $expected[] = file_create_url('core/themes/bartik/css/ckeditor-iframe.css');
+    $this->assertIdentical($expected, $this->ckeditor->buildContentsCssJSSetting($editor), '"contentsCss" configuration part of JS settings built correctly while a theme providing a CKEditor stylesheet exists.');
   }
 
   /**

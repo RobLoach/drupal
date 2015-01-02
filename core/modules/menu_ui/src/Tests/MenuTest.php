@@ -8,9 +8,13 @@
 namespace Drupal\menu_ui\Tests;
 
 use Drupal\Component\Serialization\Json;
+use Drupal\Component\Utility\Unicode;
+use Drupal\Core\Cache\Cache;
 use Drupal\Core\Menu\MenuLinkInterface;
+use Drupal\Core\Url;
 use Drupal\menu_link_content\Entity\MenuLinkContent;
 use Drupal\system\Entity\Menu;
+use Drupal\node\Entity\Node;
 
 /**
  * Add a custom menu, add menu links to the custom menu and Tools menu, check
@@ -93,12 +97,22 @@ class MenuTest extends MenuWebTestBase {
 
     foreach ($this->items as $item) {
       // Paths were set as 'node/$nid'.
-      $node = node_load($item->getRouteParameters()['node']);
+      $node = Node::load($item->getRouteParameters()['node']);
       $this->verifyMenuLink($item, $node);
     }
 
     // Login the administrator.
     $this->drupalLogin($this->admin_user);
+
+    // Verify delete link exists and reset link does not exist.
+    $this->drupalGet('admin/structure/menu/manage/' . $this->menu->id());
+    $this->assertLinkByHref('admin/structure/menu/item/' . $this->items[0]->id() . '/delete');
+    $this->assertNoLinkByHref(Url::fromUri('base://admin/structure/menu/link/' . $this->items[0]->getPluginId() . '/reset')->toString());
+    // Check delete and reset access.
+    $this->drupalGet('admin/structure/menu/item/' . $this->items[0]->id() . '/delete');
+    $this->assertResponse(200);
+    $this->drupalGet('admin/structure/menu/link/' . $this->items[0]->getPluginId() . '/reset');
+    $this->assertResponse(403);
 
     // Delete menu links.
     foreach ($this->items as $item) {
@@ -175,7 +189,7 @@ class MenuTest extends MenuWebTestBase {
     $this->assertRaw(t('!name cannot be longer than %max characters but is currently %length characters long.', array(
       '!name' => t('Menu name'),
       '%max' => MENU_MAX_MENU_NAME_LENGTH_UI,
-      '%length' => drupal_strlen($menu_name),
+      '%length' => Unicode::strlen($menu_name),
     )));
 
     // Change the menu_name so it no longer exceeds the maximum length.
@@ -187,7 +201,7 @@ class MenuTest extends MenuWebTestBase {
     $this->assertNoRaw(t('!name cannot be longer than %max characters but is currently %length characters long.', array(
       '!name' => t('Menu name'),
       '%max' => MENU_MAX_MENU_NAME_LENGTH_UI,
-      '%length' => drupal_strlen($menu_name),
+      '%length' => Unicode::strlen($menu_name),
     )));
     // Verify that the confirmation message is displayed.
     $this->assertRaw(t('Menu %label has been added.', array('%label' => $label)));
@@ -195,7 +209,7 @@ class MenuTest extends MenuWebTestBase {
     $this->assertText($label, 'Menu created');
 
     // Confirm that the custom menu block is available.
-    $this->drupalGet('admin/structure/block/list/' . \Drupal::config('system.theme')->get('default'));
+    $this->drupalGet('admin/structure/block/list/' . $this->config('system.theme')->get('default'));
     $this->assertText($label);
 
     // Enable the block.
@@ -484,7 +498,7 @@ class MenuTest extends MenuWebTestBase {
     $this->drupalPostForm('admin/structure/menu/manage/main', $edit, t('Save'));
 
     // Make sure menu shows up with new name in block addition.
-    $default_theme = \Drupal::config('system.theme')->get('default');
+    $default_theme = $this->config('system.theme')->get('default');
     $this->drupalget('admin/structure/block/list/' . $default_theme);
     $this->assertText($edit['label']);
   }
@@ -531,6 +545,12 @@ class MenuTest extends MenuWebTestBase {
     $this->assertResponse(200);
     $json = Json::decode($response);
     $this->assertIdentical($json[$id], '<ul class="contextual-links"><li class="block-configure"><a href="' . base_path() . 'admin/structure/block/manage/' . $block->id() . '">Configure block</a></li><li class="entitymenuedit-form"><a href="' . base_path() . 'admin/structure/menu/manage/tools">Edit menu</a></li></ul>');
+
+    // Test the contextual links are available when block caching is enabled.
+    $this->drupalPostForm('admin/structure/block/manage/' . $block->id(), ['settings[cache][max_age]' => Cache::PERMANENT], t('Save block'));
+    $this->drupalGet('test-page');
+    $id = 'block:block=' . $block->id() . ':|menu:menu=tools:';
+    $this->assertRaw('<div data-contextual-id="'. $id . '"></div>', format_string('Contextual link placeholder with id @id exists.', array('@id' => $id)));
   }
 
   /**

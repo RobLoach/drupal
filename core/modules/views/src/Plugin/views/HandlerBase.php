@@ -101,6 +101,13 @@ abstract class HandlerBase extends PluginBase implements ViewsHandlerInterface {
 
   /**
    * Constructs a Handler object.
+   *
+   * @param array $configuration
+   *   A configuration array containing information about the plugin instance.
+   * @param string $plugin_id
+   *   The plugin_id for the plugin instance.
+   * @param mixed $plugin_definition
+   *   The plugin implementation definition.
    */
   public function __construct(array $configuration, $plugin_id, $plugin_definition) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
@@ -165,7 +172,6 @@ abstract class HandlerBase extends PluginBase implements ViewsHandlerInterface {
     $options['relationship'] = array('default' => 'none');
     $options['group_type'] = array('default' => 'group');
     $options['admin_label'] = array('default' => '');
-    $options['dependencies'] = array('default' => array());
 
     return $options;
   }

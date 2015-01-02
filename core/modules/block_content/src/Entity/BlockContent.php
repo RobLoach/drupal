@@ -49,11 +49,18 @@ use Drupal\block_content\BlockContentInterface;
  *     "revision" = "revision_id",
  *     "bundle" = "type",
  *     "label" = "info",
+ *     "langcode" = "langcode",
  *     "uuid" = "uuid"
  *   },
  *   bundle_entity_type = "block_content_type",
  *   field_ui_base_route = "entity.block_content_type.edit_form",
+ *   render_cache = FALSE,
  * )
+ *
+ * Note that render caching of block_content entities is disabled because they
+ * are always rendered as blocks, and blocks already have their own render
+ * caching.
+ * See https://www.drupal.org/node/2284917#comment-9132521 for more information.
  */
 class BlockContent extends ContentEntityBase implements BlockContentInterface {
 
@@ -156,9 +163,16 @@ class BlockContent extends ContentEntityBase implements BlockContentInterface {
       ->setSetting('unsigned', TRUE);
 
     $fields['langcode'] = BaseFieldDefinition::create('language')
-      ->setLabel(t('Language code'))
+      ->setLabel(t('Language'))
       ->setDescription(t('The custom block language code.'))
-      ->setRevisionable(TRUE);
+      ->setRevisionable(TRUE)
+      ->setDisplayOptions('view', array(
+        'type' => 'hidden',
+      ))
+      ->setDisplayOptions('form', array(
+        'type' => 'language_select',
+        'weight' => 2,
+      ));
 
     $fields['info'] = BaseFieldDefinition::create('string')
       ->setLabel(t('Block description'))

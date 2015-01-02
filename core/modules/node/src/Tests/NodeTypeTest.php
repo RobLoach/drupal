@@ -7,6 +7,7 @@
 
 namespace Drupal\node\Tests;
 use Drupal\field\Entity\FieldConfig;
+use Drupal\node\Entity\NodeType;
 
 /**
  * Ensures that node type functions work correctly.
@@ -122,35 +123,6 @@ class NodeTypeTest extends NodeTestBase {
   }
 
   /**
-   * Tests that node types correctly handles their locking.
-   */
-  function testNodeTypeStatus() {
-    // Enable all core node modules, and all types should be active.
-    $this->container->get('module_handler')->install(array('book'), FALSE);
-    $types = node_type_get_types();
-    foreach (array('book', 'article', 'page') as $type) {
-      $this->assertTrue(isset($types[$type]), format_string('%type is found in node types.', array('%type' => $type)));
-      $this->assertFalse($types[$type]->isLocked(), format_string('%type type is not locked.', array('%type' => $type)));
-    }
-
-    // Disable book module and the respective type should still be active, since
-    // it is not provided by shipped configuration entity.
-    $this->container->get('module_handler')->uninstall(array('book'), FALSE);
-    $types = node_type_get_types();
-    $this->assertFalse($types['book']->isLocked(), "Book module's node type still active.");
-    $this->assertFalse($types['article']->isLocked(), 'Article node type still active.');
-    $this->assertFalse($types['page']->isLocked(), 'Basic page node type still active.');
-
-    // Re-install the modules and verify that the types are active again.
-    $this->container->get('module_handler')->install(array('book'), FALSE);
-    $types = node_type_get_types();
-    foreach (array('book', 'article', 'page') as $type) {
-      $this->assertTrue(isset($types[$type]), format_string('%type is found in node types.', array('%type' => $type)));
-      $this->assertFalse($types[$type]->isLocked(), format_string('%type type is not locked.', array('%type' => $type)));
-    }
-  }
-
-  /**
    * Tests deleting a content type that still has content.
    */
   function testNodeTypeDeletion() {
@@ -183,20 +155,29 @@ class NodeTypeTest extends NodeTestBase {
       'The content type is available for deletion.'
     );
     $this->assertText(t('This action cannot be undone.'), 'The node type deletion confirmation form is available.');
-    // Test that forum node type could not be deleted while forum active.
-    $this->container->get('module_handler')->install(array('forum'));
+
+    // Test that a locked node type could not be deleted.
+    $this->container->get('module_installer')->install(array('node_test_config'));
+    // Lock the default node type.
+    $locked = \Drupal::state()->get('node.type.locked');
+    $locked['default'] = 'default';
+    \Drupal::state()->set('node.type.locked', $locked);
     // Call to flush all caches after installing the forum module in the same
     // way installing a module through the UI does.
     $this->resetAll();
-    $this->drupalGet('admin/structure/types/manage/forum');
+    $this->drupalGet('admin/structure/types/manage/default');
     $this->assertNoLink(t('Delete'));
-    $this->drupalGet('admin/structure/types/manage/forum/delete');
+    $this->drupalGet('admin/structure/types/manage/default/delete');
     $this->assertResponse(403);
-    $this->container->get('module_handler')->uninstall(array('forum'));
-    $this->drupalGet('admin/structure/types/manage/forum');
-    $this->assertLink(t('Delete'));
-    $this->drupalGet('admin/structure/types/manage/forum/delete');
+    $this->container->get('module_installer')->uninstall(array('node_test_config'));
+    $this->container = \Drupal::getContainer();
+    unset($locked['default']);
+    \Drupal::state()->set('node.type.locked', $locked);
+    $this->drupalGet('admin/structure/types/manage/default');
+    $this->clickLink(t('Delete'));
     $this->assertResponse(200);
+    $this->drupalPostForm(NULL, array(), t('Delete'));
+    $this->assertFalse((bool) NodeType::load('default'), 'Node type with machine default deleted.');
   }
 
   /**

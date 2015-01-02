@@ -13,6 +13,7 @@ use Drupal\Core\Database\Database;
 use Drupal\Core\Language\LanguageInterface;
 use Drupal\block\Entity\Block;
 use Drupal\taxonomy\Entity\Term;
+use Drupal\node\Entity\Node;
 
 /**
  * Tests the invocation of hooks when creating, inserting, loading, updating or
@@ -42,9 +43,6 @@ class EntityCrudHookTest extends EntityUnitTestBase {
 
   protected function setUp() {
     parent::setUp();
-
-    $this->installEntitySchema('node');
-    $this->installEntitySchema('comment');
 
     $this->installSchema('user', array('users_data'));
     $this->installSchema('file', array('file_usage'));
@@ -316,7 +314,7 @@ class EntityCrudHookTest extends EntityUnitTestBase {
     ));
 
     $GLOBALS['entity_crud_hook_test'] = array();
-    $node = node_load($node->id());
+    $node = Node::load($node->id());
 
     $this->assertHookMessageOrder(array(
       'entity_crud_hook_test_entity_load called for type node',

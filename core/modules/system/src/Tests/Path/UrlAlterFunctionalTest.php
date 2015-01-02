@@ -62,7 +62,7 @@ class UrlAlterFunctionalTest extends WebTestBase {
     $this->drupalGet('community');
     $this->assertText('General discussion', 'The community path gets resolved correctly');
     $this->assertUrlOutboundAlter('forum', 'community');
-    $forum_vid = \Drupal::config('forum.settings')->get('vocabulary');
+    $forum_vid = $this->config('forum.settings')->get('vocabulary');
     $term_name = $this->randomMachineName();
     $term = entity_create('taxonomy_term', array(
       'name' => $term_name,
@@ -72,15 +72,6 @@ class UrlAlterFunctionalTest extends WebTestBase {
     $this->drupalGet("community/" . $term->id());
     $this->assertText($term_name, 'The community/{tid} path gets resolved correctly');
     $this->assertUrlOutboundAlter("forum/" . $term->id(), "community/" . $term->id());
-  }
-
-  /**
-   * Test current_path() and request_path().
-   */
-  function testCurrentUrlRequestedPath() {
-    $this->drupalGet('url-alter-test/bar');
-    $this->assertRaw('request_path=url-alter-test/bar', 'request_path() returns the requested path.');
-    $this->assertRaw('current_path=url-alter-test/foo', 'current_path() returns the internal path.');
   }
 
   /**

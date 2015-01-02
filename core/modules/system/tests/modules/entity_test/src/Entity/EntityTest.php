@@ -23,7 +23,6 @@ use Drupal\user\UserInterface;
  *   handlers = {
  *     "list_builder" = "Drupal\entity_test\EntityTestListBuilder",
  *     "view_builder" = "Drupal\entity_test\EntityTestViewBuilder",
- *     "views_data" = "Drupal\entity_test\EntityTestViewsData",
  *     "access" = "Drupal\entity_test\EntityTestAccessControlHandler",
  *     "form" = {
  *       "default" = "Drupal\entity_test\EntityTestForm",
@@ -38,7 +37,8 @@ use Drupal\user\UserInterface;
  *     "id" = "id",
  *     "uuid" = "uuid",
  *     "bundle" = "type",
- *     "label" = "name"
+ *     "label" = "name",
+ *     "langcode" = "langcode",
  *   },
  *   links = {
  *     "canonical" = "entity.entity_test.canonical",
@@ -90,7 +90,7 @@ class EntityTest extends ContentEntityBase implements EntityOwnerInterface {
         'weight' => -5,
       ))
       ->setDisplayOptions('form', array(
-        'type' => 'string',
+        'type' => 'string_textfield',
         'weight' => -5,
       ));
 
@@ -107,7 +107,7 @@ class EntityTest extends ContentEntityBase implements EntityOwnerInterface {
       ->setSetting('handler', 'default')
       // Default EntityTest entities to have the root user as the owner, to
       // simplify testing.
-      ->setDefaultValue(array(0 => 1))
+      ->setDefaultValue(array(0 => array('target_id' => 1)))
       ->setTranslatable(TRUE)
       ->setDisplayOptions('form', array(
         'type' => 'entity_reference_autocomplete',

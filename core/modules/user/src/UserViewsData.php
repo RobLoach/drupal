@@ -82,7 +82,7 @@ class UserViewsData extends EntityViewsData {
     $data['users_field_data']['name']['help'] = t('The user or author name.');
     $data['users_field_data']['name']['field']['id'] = 'user_name';
     $data['users_field_data']['name']['filter']['title'] = t('Name (raw)');
-    $data['users_field_data']['name']['filter']['help'] = t('The user or author name. This filter does not check if the user exists and allows partial matching. Does not utilize autocomplete.');
+    $data['users_field_data']['name']['filter']['help'] = t('The user or author name. This filter does not check if the user exists and allows partial matching. Does not use autocomplete.');
 
     // Note that this field implements field level access control.
     $data['users_field_data']['mail']['help'] = t('Email address for a given user. This field is normally not shown to users, so be cautious when using it.');
@@ -277,16 +277,16 @@ class UserViewsData extends EntityViewsData {
       ),
     );
 
-    $data['users_roles']['table']['group']  = t('User');
+    $data['user__roles']['table']['group']  = t('User');
 
-    $data['users_roles']['table']['join'] = array(
+    $data['user__roles']['table']['join'] = array(
       'users' => array(
         'left_field' => 'uid',
-        'field' => 'uid',
+        'field' => 'entity_id',
       ),
     );
 
-    $data['users_roles']['rid'] = array(
+    $data['user__roles']['roles_target_id'] = array(
       'title' => t('Roles'),
       'help' => t('Roles that a user belongs to.'),
       'field' => array(
@@ -298,7 +298,7 @@ class UserViewsData extends EntityViewsData {
         'allow empty' => TRUE,
       ),
       'argument' => array(
-        'id' => 'users_roles_rid',
+        'id' => 'user__roles_target_id',
         'name table' => 'role',
         'name field' => 'name',
         'empty field name' => t('No role'),
@@ -307,7 +307,7 @@ class UserViewsData extends EntityViewsData {
       ),
     );
 
-    $data['users_roles']['permission'] = array(
+    $data['user__roles']['permission'] = array(
       'title' => t('Permission'),
       'help' => t('The user permissions.'),
       'field' => array(
@@ -316,7 +316,7 @@ class UserViewsData extends EntityViewsData {
       ),
       'filter' => array(
         'id' => 'user_permissions',
-        'real field' => 'rid',
+        'real field' => 'roles_target_id',
       ),
     );
 

@@ -12,6 +12,7 @@ use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\views\Plugin\views\display\DisplayPluginBase;
 use Drupal\views\ViewExecutable;
+use Drupal\Core\Form\OptGroup;
 
 /**
  * Simple filter to handle matching of multiple options selectable via checkboxes
@@ -367,7 +368,7 @@ class InOperator extends FilterPluginBase {
           if ($values !== '') {
             $values .= ', ';
           }
-          if (drupal_strlen($values) > 8) {
+          if (Unicode::strlen($values) > 8) {
             $values = Unicode::truncate($values, 8, FALSE, TRUE);
             break;
           }
@@ -435,7 +436,7 @@ class InOperator extends FilterPluginBase {
       }
 
       // Some filter_in_operator usage uses optgroups forms, so flatten it.
-      $flat_options = form_options_flatten($this->valueOptions, TRUE);
+      $flat_options = OptGroup::flattenOptions($this->valueOptions);
 
       // Remove every element which is not known.
       foreach ($this->value as $value) {

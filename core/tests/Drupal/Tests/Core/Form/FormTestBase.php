@@ -160,6 +160,7 @@ abstract class FormTestBase extends UnitTestCase {
       ->setConstructorArgs(array($this->requestStack, $this->urlGenerator))
       ->setMethods(array('batchGet', 'drupalInstallationAttempted'))
       ->getMock();
+    $this->root = dirname(dirname(substr(__DIR__, 0, -strlen(__NAMESPACE__))));
 
     $this->formBuilder = new TestFormBuilder($this->formValidator, $this->formSubmitter, $this->formCache, $this->moduleHandler, $this->eventDispatcher, $this->requestStack, $this->classResolver, $this->themeManager, $this->csrfToken, $this->kernel);
     $this->formBuilder->setCurrentUser($this->account);
@@ -325,6 +326,13 @@ class TestFormBuilder extends FormBuilder {
    */
   public function drupalStaticReset($name = NULL) {
     static::$seenIds = array();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function requestUri() {
+    return '';
   }
 
 }

@@ -14,7 +14,6 @@ use Drupal\Core\Installer\Exception\NoProfilesException;
 use Drupal\Core\Installer\InstallerKernel;
 use Drupal\Core\Language\Language;
 use Drupal\Core\Language\LanguageManager;
-use Drupal\Core\Page\DefaultHtmlPageRenderer;
 use Drupal\Core\Site\Settings;
 use Drupal\Core\StringTranslation\Translator\FileTranslation;
 use Drupal\Core\Extension\ExtensionDiscovery;
@@ -74,6 +73,10 @@ const INSTALL_TASK_RUN_IF_NOT_COMPLETED = 3;
  * an error is thrown, (b) a new page needs to be displayed, or (c) the
  * installation finishes (whichever happens first).
  *
+ * @param $class_loader
+ *   The class loader. Normally Composer's ClassLoader, as included by the
+ *   front controller, but may also be decorated; e.g.,
+ *   \Symfony\Component\ClassLoader\ApcClassLoader.
  * @param $settings
  *   An optional array of installation settings. Leave this empty for a normal,
  *   interactive, browser-based installation intended to occur over multiple
@@ -85,7 +88,15 @@ const INSTALL_TASK_RUN_IF_NOT_COMPLETED = 3;
  *
  * @see install_state_defaults()
  */
-function install_drupal($settings = array()) {
+function install_drupal($class_loader, $settings = array()) {
+  // Support the old way of calling this function with just a settings array.
+  // @todo Remove this when Drush is updated in the Drupal testing
+  //   infrastructure in https://www.drupal.org/node/2389243
+  if (is_array($class_loader) && $settings === array()) {
+    $settings = $class_loader;
+    $class_loader = require __DIR__ . '/../vendor/autoload.php';
+  }
+
   global $install_state;
   // Initialize the installation state with the settings that were passed in,
   // as well as a boolean indicating whether or not this is an interactive
@@ -96,7 +107,7 @@ function install_drupal($settings = array()) {
   try {
     // Begin the page request. This adds information about the current state of
     // the Drupal installation to the passed-in array.
-    install_begin_request($install_state);
+    install_begin_request($class_loader, $install_state);
     // Based on the installation state, run the remaining tasks for this page
     // request, and collect any output.
     $output = install_run_tasks($install_state);
@@ -157,7 +168,8 @@ function install_drupal($settings = array()) {
  * be used to programmatically submit forms during the installation; the keys
  * of each element indicate the name of the installation task that the form
  * submission is for, and the values are used as the $form_state->getValues()
- * array that is passed on to the form submission via drupal_form_submit()).
+ * array that is passed on to the form submission via
+ * \Drupal::formBuilder()->submitForm()).
  *
  * @see \Drupal\Core\Form\FormBuilderInterface::submitForm()
  */
@@ -172,6 +184,8 @@ function install_state_defaults() {
     'config_verified' => FALSE,
     // TRUE when there is a valid database connection.
     'database_verified' => FALSE,
+    // TRUE if database is empty & ready to install.
+    'database_ready' => FALSE,
     // TRUE when a valid settings.php exists (containing both database
     // connection information and config directory names).
     'settings_verified' => FALSE,
@@ -184,7 +198,7 @@ function install_state_defaults() {
     // installation. The keys of each element indicate the name of the
     // installation task that the form submission is for, and the values are
     // used as the $form_state->getValues() array that is passed on to the form
-    // submission via drupal_form_submit().
+    // submission via \Drupal::formBuilder()->submitForm().
     'forms' => array(),
     // This becomes TRUE only at the end of the installation process, after
     // all available tasks have been completed and Drupal is fully installed.
@@ -253,11 +267,15 @@ function install_state_defaults() {
  * This function performs commands that must run at the beginning of every page
  * request. It throws an exception if the installation should not proceed.
  *
+ * @param $class_loader
+ *   The class loader. Normally Composer's ClassLoader, as included by the
+ *   front controller, but may also be decorated; e.g.,
+ *   \Symfony\Component\ClassLoader\ApcClassLoader.
  * @param $install_state
  *   An array of information about the current installation state. This is
  *   modified with information gleaned from the beginning of the page request.
  */
-function install_begin_request(&$install_state) {
+function install_begin_request($class_loader, &$install_state) {
   $request = Request::createFromGlobals();
 
   // Add any installation parameters passed in via the URL.
@@ -287,8 +305,7 @@ function install_begin_request(&$install_state) {
   }
 
   $site_path = DrupalKernel::findSitePath($request, FALSE);
-  $class_loader = require __DIR__ . '/../vendor/autoload.php';
-  Settings::initialize($site_path, $class_loader);
+  Settings::initialize(dirname(dirname(__DIR__)), $site_path, $class_loader);
 
   // Ensure that procedural dependencies are loaded as early as possible,
   // since the error/exception handlers depend on them.
@@ -321,9 +338,6 @@ function install_begin_request(&$install_state) {
   $container
     ->register('string_translation', 'Drupal\Core\StringTranslation\TranslationManager')
     ->addArgument(new Reference('language_manager'));
-  $container
-    ->register('path.matcher', 'Drupal\Core\Path\PathMatcher')
-    ->addArgument(new Reference('config.factory'));
 
   // Register the stream wrapper manager.
   $container
@@ -334,9 +348,16 @@ function install_begin_request(&$install_state) {
   \Drupal::setContainer($container);
 
   // Determine whether base system services are ready to operate.
-  $install_state['config_verified'] = install_verify_config_directory(CONFIG_ACTIVE_DIRECTORY) && install_verify_config_directory(CONFIG_STAGING_DIRECTORY);
+  $install_state['config_verified'] = install_ensure_config_directory(CONFIG_ACTIVE_DIRECTORY) && install_ensure_config_directory(CONFIG_STAGING_DIRECTORY);
   $install_state['database_verified'] = install_verify_database_settings();
   $install_state['settings_verified'] = $install_state['config_verified'] && $install_state['database_verified'];
+
+  // Install factory tables only after checking the database.
+  if ($install_state['database_verified'] && $install_state['database_ready']) {
+    $container
+      ->register('path.matcher', 'Drupal\Core\Path\PathMatcher')
+      ->addArgument(new Reference('config.factory'));
+  }
 
   if ($install_state['settings_verified']) {
     try {
@@ -372,8 +393,8 @@ function install_begin_request(&$install_state) {
   $container->get('request_stack')->push($request);
 
   // Register the file translation service.
-  if (isset($GLOBALS['config']['locale.settings']['translation.path'])) {
-    $directory = $GLOBALS['config']['locale.settings']['translation.path'];
+  if (isset($GLOBALS['config']['locale.settings']['translation']['path'])) {
+    $directory = $GLOBALS['config']['locale.settings']['translation']['path'];
   }
   else {
     $directory = $site_path . '/files/translations';
@@ -390,7 +411,7 @@ function install_begin_request(&$install_state) {
   }
 
   // Add list of all available profiles to the installation state.
-  $listing = new ExtensionDiscovery();
+  $listing = new ExtensionDiscovery($container->get('app.root'));
   $listing->setProfileDirectories(array());
   $install_state['profiles'] += $listing->scan('profile');
 
@@ -486,6 +507,11 @@ function install_run_tasks(&$install_state) {
     $install_state['active_task'] = $task_name;
     $original_parameters = $install_state['parameters'];
     $output = install_run_task($task, $install_state);
+    // Ensure the maintenance theme is initialized. If the install task has
+    // rebuilt the container the active theme will not be set. This can occur if
+    // the task has installed a module.
+    drupal_maintenance_theme();
+
     $install_state['parameters_changed'] = ($install_state['parameters'] != $original_parameters);
     // Store this task as having been performed during the current request,
     // and save it to the database as completed, if we need to and if the
@@ -685,6 +711,9 @@ function install_tasks($install_state) {
       'run' => $install_state['settings_verified'] ? INSTALL_TASK_SKIP : INSTALL_TASK_RUN_IF_NOT_COMPLETED,
       'function' => 'Drupal\Core\Installer\Form\SiteSettingsForm',
     ),
+    'install_verify_database_ready' => array(
+      'run' => $install_state['database_ready'] ? INSTALL_TASK_SKIP : INSTALL_TASK_RUN_IF_NOT_COMPLETED,
+    ),
     'install_base_system' => array(
       'run' => $install_state['base_system_verified'] ? INSTALL_TASK_SKIP : INSTALL_TASK_RUN_IF_NOT_COMPLETED,
     ),
@@ -718,7 +747,7 @@ function install_tasks($install_state) {
     $profile = $install_state['parameters']['profile'];
     $profile_install_file = $install_state['profiles'][$profile]->getPath() . '/' . $profile . '.install';
     if (file_exists($profile_install_file)) {
-      include_once DRUPAL_ROOT . '/' . $profile_install_file;
+      include_once \Drupal::root() . '/' . $profile_install_file;
     }
     $function = $install_state['parameters']['profile'] . '_install_tasks';
     if (function_exists($function)) {
@@ -934,7 +963,7 @@ function install_display_output($output, $install_state) {
     'ETag' => '"' . REQUEST_TIME . '"',
   );
   $response->headers->add($default_headers);
-  $response->setContent(DefaultHtmlPageRenderer::renderPage($output, $output['#title'], 'install', $regions));
+  $response->setContent(\Drupal::service('bare_html_page_renderer')->renderBarePage($output, $output['#title'], 'install_page', $regions));
   $response->send();
   exit;
 }
@@ -979,7 +1008,7 @@ function install_base_system(&$install_state) {
 
   // Enable the user module so that sessions can be recorded during the
   // upcoming bootstrap step.
-  \Drupal::moduleHandler()->install(array('user'), FALSE);
+  \Drupal::service('module_installer')->install(array('user'), FALSE);
 
   // Save the list of other modules to install for the upcoming tasks.
   // State can be set to the database now that system.module is installed.
@@ -1029,6 +1058,21 @@ function install_verify_database_settings() {
     }
   }
   return FALSE;
+}
+
+/**
+ * Verify that the database is ready (no existing Drupal installation).
+ */
+function install_verify_database_ready() {
+  $system_schema = system_schema();
+  end($system_schema);
+  $table = key($system_schema);
+
+  if ($database = Database::getConnectionInfo()) {
+    if (Database::getConnection()->schema()->tableExists($table)) {
+      throw new AlreadyInstalledException(\Drupal::service('string_translation'));
+    }
+  }
 }
 
 /**
@@ -1112,6 +1156,7 @@ function install_select_profile(&$install_state) {
  * 3. A discovered profile that is a distribution.
  *    If multiple profiles are distributions, then the first discovered profile
  *    will be selected.
+ * 4. Only one visible profile is available.
  *
  * @param array $install_state
  *   The current installer state, containing a 'profiles' key, which is an
@@ -1138,6 +1183,16 @@ function _install_select_profile(&$install_state) {
     if (!empty($profile_info['distribution'])) {
       return $profile->getName();
     }
+  }
+
+  // Get all visible (not hidden) profiles.
+  $visible_profiles = array_filter($install_state['profiles'], function ($profile) {
+    $profile_info = install_profile_info($profile->getName());
+    return !isset($profile_info['hidden']) || !$profile_info['hidden'];
+  });
+
+  if (count($visible_profiles) == 1) {
+    return (key($visible_profiles));
   }
 }
 
@@ -1784,13 +1839,10 @@ function install_finished(&$install_state) {
     user_login_finalize($account);
   }
 
-  // @todo Temporary hack to satisfy PIFR.
-  // @see https://drupal.org/node/1317548
-  $pifr_assertion = '<span style="display: none;">Drupal installation complete</span>';
   $success_message = t('Congratulations, you installed @drupal!', array(
     '@drupal' => drupal_install_profile_distribution_name(),
   ));
-  drupal_set_message(SafeMarkup::set($success_message . $pifr_assertion));
+  drupal_set_message($success_message);
 }
 
 /**
@@ -1801,7 +1853,7 @@ function _install_module_batch($module, $module_name, &$context) {
   // loaded by drupal_bootstrap in subsequent batch requests, and other
   // modules possibly depending on it can safely perform their installation
   // steps.
-  \Drupal::moduleHandler()->install(array($module), FALSE);
+  \Drupal::service('module_installer')->install(array($module), FALSE);
   $context['results'][] = $module;
   $context['message'] = t('Installed %module module.', array('%module' => $module_name));
 }

@@ -107,7 +107,7 @@ class TwigExtension extends \Twig_Extension {
       new \Twig_SimpleFilter('without', 'twig_without'),
 
       // CSS class and ID filters.
-      new \Twig_SimpleFilter('clean_class', 'drupal_html_class'),
+      new \Twig_SimpleFilter('clean_class', '\Drupal\Component\Utility\Html::getClass'),
       new \Twig_SimpleFilter('clean_id', 'drupal_clean_id_identifier'),
     );
   }
@@ -209,13 +209,10 @@ class TwigExtension extends \Twig_Extension {
    *   An HTML string containing a link to the given url.
    */
   public function getLink($text, $url) {
-    if ($url instanceof Url) {
-      return $this->linkGenerator->generate($text, $url);
+    if (!$url instanceof Url) {
+      $url = Url::fromUri($url);
     }
-    else {
-      // @todo Convert once https://www.drupal.org/node/2306901 is in
-      return _l($text, $url);
-    }
+    return $this->linkGenerator->generate($text, $url);
   }
 
   /**

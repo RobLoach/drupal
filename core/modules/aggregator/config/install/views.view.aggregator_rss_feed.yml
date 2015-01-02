@@ -1,8 +1,16 @@
-base_field: iid
-base_table: aggregator_item
-core: 8.x
-description: ''
+langcode: en
 status: true
+dependencies:
+  module:
+    - aggregator
+id: aggregator_rss_feed
+label: 'Aggregator RSS feed'
+module: aggregator
+description: ''
+tag: aggregator
+base_table: aggregator_item
+base_field: iid
+core: 8.x
 display:
   default:
     display_plugin: default
@@ -13,11 +21,9 @@ display:
       access:
         type: none
         options: {  }
-        provider: views
       cache:
         type: none
         options: {  }
-        provider: views
       query:
         type: views_query
         options:
@@ -26,7 +32,6 @@ display:
           replica: false
           query_comment: false
           query_tags: {  }
-        provider: views
       exposed_form:
         type: basic
         options:
@@ -37,7 +42,6 @@ display:
           expose_sort_order: true
           sort_asc_label: Asc
           sort_desc_label: Desc
-        provider: views
       pager:
         type: full
         options:
@@ -59,13 +63,10 @@ display:
             first: '« first'
             last: 'last »'
           quantity: 9
-        provider: views
       style:
         type: default
-        provider: views
       row:
         type: 'entity:aggregator_item'
-        provider: views
       fields:
         iid:
           table: aggregator_item
@@ -125,6 +126,8 @@ display:
           format_plural_plural: '@count'
           prefix: ''
           suffix: ''
+          entity_type: aggregator_item
+          entity_field: iid
       filters: {  }
       sorts: {  }
       title: 'Aggregator RSS feed'
@@ -133,6 +136,8 @@ display:
       empty: {  }
       relationships: {  }
       arguments: {  }
+      field_langcode: '***LANGUAGE_language_content***'
+      field_langcode_add_to_query: null
   feed_items:
     display_plugin: feed
     id: feed_items
@@ -143,11 +148,5 @@ display:
       display_description: ''
       defaults:
         arguments: true
-label: 'Aggregator RSS feed'
-module: aggregator
-id: aggregator_rss_feed
-tag: aggregator
-langcode: en
-dependencies:
-  module:
-    - aggregator
+      field_langcode: '***LANGUAGE_language_content***'
+      field_langcode_add_to_query: null

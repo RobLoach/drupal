@@ -141,6 +141,16 @@ trait AssertContentTrait {
   }
 
   /**
+   * Get the current URL from the cURL handler.
+   *
+   * @return string
+   *   The current URL.
+   */
+  protected function getUrl() {
+    return isset($this->url) ? $this->url : 'no-url';
+  }
+
+  /**
    * Builds an XPath query.
    *
    * Builds an XPath query by replacing placeholders in the query by the value
@@ -415,6 +425,61 @@ trait AssertContentTrait {
       $message = String::format('Raw "@raw" not found', array('@raw' => $raw));
     }
     return $this->assert(strpos($this->getRawContent(), $raw) === FALSE, $message, $group);
+  }
+
+  /**
+   * Passes if the raw text IS found escaped on the loaded page, fail otherwise.
+   *
+   * Raw text refers to the raw HTML that the page generated.
+   *
+   * @param string $raw
+   *   Raw (HTML) string to look for.
+   * @param string $message
+   *   (optional) A message to display with the assertion. Do not translate
+   *   messages: use format_string() to embed variables in the message text, not
+   *   t(). If left blank, a default message will be displayed.
+   * @param string $group
+   *   (optional) The group this message is in, which is displayed in a column
+   *   in test output. Use 'Debug' to indicate this is debugging output. Do not
+   *   translate this string. Defaults to 'Other'; most tests do not override
+   *   this default.
+   *
+   * @return bool
+   *   TRUE on pass, FALSE on fail.
+   */
+  protected function assertEscaped($raw, $message = '', $group = 'Other') {
+    if (!$message) {
+      $message = String::format('Escaped "@raw" found', array('@raw' => $raw));
+    }
+    return $this->assert(strpos($this->getRawContent(), String::checkPlain($raw)) !== FALSE, $message, $group);
+  }
+
+  /**
+   * Passes if the raw text IS NOT found escaped on the loaded page, fail
+   * otherwise.
+   *
+   * Raw text refers to the raw HTML that the page generated.
+   *
+   * @param string $raw
+   *   Raw (HTML) string to look for.
+   * @param string $message
+   *   (optional) A message to display with the assertion. Do not translate
+   *   messages: use format_string() to embed variables in the message text, not
+   *   t(). If left blank, a default message will be displayed.
+   * @param string $group
+   *   (optional) The group this message is in, which is displayed in a column
+   *   in test output. Use 'Debug' to indicate this is debugging output. Do not
+   *   translate this string. Defaults to 'Other'; most tests do not override
+   *   this default.
+   *
+   * @return bool
+   *   TRUE on pass, FALSE on fail.
+   */
+  protected function assertNoEscaped($raw, $message = '', $group = 'Other') {
+    if (!$message) {
+      $message = String::format('Escaped "@raw" not found', array('@raw' => $raw));
+    }
+    return $this->assert(strpos($this->getRawContent(), String::checkPlain($raw)) === FALSE, $message, $group);
   }
 
   /**

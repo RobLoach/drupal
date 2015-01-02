@@ -52,9 +52,7 @@ class UserAdminTest extends WebTestBase {
     $this->assertText($admin_user->getUsername(), 'Found Admin user on admin users page');
 
     // Test for existence of edit link in table.
-    // @todo This cannot be converted to \Drupal::l() until
-    //   https://www.drupal.org/node/2345725 is resolved.
-    $link = _l(t('Edit'), "user/" . $user_a->id() . "/edit", array('query' => array('destination' => 'admin/people')));
+    $link = $user_a->link(t('Edit'), 'edit-form', array('query' => array('destination' => 'admin/people')));
     $this->assertRaw($link, 'Found user A edit link on admin users page');
 
     // Test exposed filter elements.
@@ -151,14 +149,14 @@ class UserAdminTest extends WebTestBase {
     $this->drupalLogout();
 
     // Test custom user registration approval email address(es).
-    $config = \Drupal::config('user.settings');
+    $config = $this->config('user.settings');
     // Allow users to register with admin approval.
     $config
       ->set('verify_mail', TRUE)
       ->set('register', USER_REGISTER_VISITORS_ADMINISTRATIVE_APPROVAL)
       ->save();
     // Set the site and notification email addresses.
-    $system = \Drupal::config('system.site');
+    $system = $this->config('system.site');
     $server_address = $this->randomMachineName() . '@example.com';
     $notify_address = $this->randomMachineName() . '@example.com';
     $system

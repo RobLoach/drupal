@@ -39,16 +39,6 @@ interface ListInterface extends TraversableTypedDataInterface, \ArrayAccess, \Co
   public function getItemDefinition();
 
   /**
-   * React to changes to a child item.
-   *
-   * Note that this is invoked after any changes have been applied.
-   *
-   * @param $delta
-   *   The delta of the item which is changed.
-   */
-  public function onChange($delta);
-
-  /**
    * Returns the item at the specified position in this list.
    *
    * @param int $index
@@ -89,5 +79,17 @@ interface ListInterface extends TraversableTypedDataInterface, \ArrayAccess, \Co
    *   If the complex data structure is unset and no item can be created.
    */
   public function first();
+
+  /**
+   * Filters the items in the list using a custom callback.
+   *
+   * @param callable $callback
+   *   The callback to use for filtering. Like with array_filter(), the
+   *   callback is called for each item in the list. Only items for which the
+   *   callback returns TRUE are preserved.
+   *
+   * @return $this
+   */
+  public function filter($callback);
 
 }

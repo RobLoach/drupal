@@ -10,6 +10,7 @@ namespace Drupal\node\Tests\Views;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\language\Entity\ConfigurableLanguage;
 use Drupal\views\Plugin\views\PluginBase;
+use Drupal\views\Tests\ViewTestData;
 
 /**
  * Tests node language fields, filters, and sorting.
@@ -41,11 +42,12 @@ class NodeLanguageTest extends NodeTestBase {
    * {@inheritdoc}
    */
   protected function setUp() {
-    parent::setUp();
+    parent::setUp(FALSE);
 
     // Create Page content type.
     if ($this->profile != 'standard') {
       $this->drupalCreateContentType(array('type' => 'page', 'name' => 'Basic page'));
+      ViewTestData::createTestViews(get_class($this), array('node_test_views'));
     }
 
     // Add two new languages.
@@ -180,7 +182,7 @@ class NodeLanguageTest extends NodeTestBase {
     // Override the config for the front page view, so that the language
     // filter is set to the site default language instead. This should just
     // show the English nodes, no matter what the content language is.
-    $config = \Drupal::config('views.view.frontpage');
+    $config = $this->config('views.view.frontpage');
     $config->set('display.default.display_options.filters.langcode.value', array(PluginBase::VIEWS_QUERY_LANGUAGE_SITE_DEFAULT => PluginBase::VIEWS_QUERY_LANGUAGE_SITE_DEFAULT));
     $config->save();
     foreach ($this->node_titles as $langcode => $titles) {
@@ -204,10 +206,10 @@ class NodeLanguageTest extends NodeTestBase {
     // language configuration!
     $config->set('display.default.display_options.filters.langcode.value', array('***LANGUAGE_language_interface***' => '***LANGUAGE_language_interface***'));
     $config->save();
-    $language_config = \Drupal::config('language.types');
+    $language_config = $this->config('language.types');
     $language_config->set('negotiation.language_interface.enabled', array('language-selected' => 1));
     $language_config->save();
-    $language_config = \Drupal::config('language.negotiation');
+    $language_config = $this->config('language.negotiation');
     $language_config->set('selected_langcode', 'es');
     $language_config->save();
 

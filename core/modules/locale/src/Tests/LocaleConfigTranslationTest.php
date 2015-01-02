@@ -22,7 +22,7 @@ class LocaleConfigTranslationTest extends WebTestBase {
    *
    * @var array
    */
-  public static $modules = array('locale', 'contact');
+  public static $modules = array('locale', 'contact', 'contact_test');
 
   /**
    * {@inheritdoc}
@@ -34,7 +34,7 @@ class LocaleConfigTranslationTest extends WebTestBase {
 
     // Enable import of translations. By default this is disabled for automated
     // tests.
-    \Drupal::config('locale.settings')
+    $this->config('locale.settings')
       ->set('translation.import_enabled', TRUE)
       ->save();
   }
@@ -136,8 +136,10 @@ class LocaleConfigTranslationTest extends WebTestBase {
 
     // Check the string is unique and has no translation yet.
     $translations = $this->storage->getTranslations(array('language' => $langcode, 'type' => 'configuration', 'name' => 'image.style.medium'));
+    $this->assertEqual(count($translations), 1);
     $translation = reset($translations);
-    $this->assertTrue(count($translations) == 1 && $translation->source == $string->source && empty($translation->translation), 'Got only one string for image configuration and has no translation.');
+    $this->assertEqual($translation->source, $string->source);
+    $this->assertTrue(empty($translation->translation));
 
     // Translate using the UI so configuration is refreshed.
     $image_style_label = $this->randomMachineName(20);

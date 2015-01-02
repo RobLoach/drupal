@@ -40,6 +40,7 @@ use Drupal\taxonomy\TermInterface;
  *     "id" = "tid",
  *     "bundle" = "vid",
  *     "label" = "name",
+ *     "langcode" = "langcode",
  *     "uuid" = "uuid"
  *   },
  *   bundle_entity_type = "taxonomy_vocabulary",
@@ -118,8 +119,15 @@ class Term extends ContentEntityBase implements TermInterface {
       ->setSetting('target_type', 'taxonomy_vocabulary');
 
     $fields['langcode'] = BaseFieldDefinition::create('language')
-      ->setLabel(t('Language code'))
-      ->setDescription(t('The term language code.'));
+      ->setLabel(t('Language'))
+      ->setDescription(t('The term language code.'))
+      ->setDisplayOptions('view', array(
+        'type' => 'hidden',
+      ))
+      ->setDisplayOptions('form', array(
+        'type' => 'language_select',
+        'weight' => 2,
+      ));
 
     $fields['name'] = BaseFieldDefinition::create('string')
       ->setLabel(t('Name'))

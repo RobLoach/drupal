@@ -9,7 +9,6 @@ namespace Drupal\system\Tests\System;
 
 use Drupal\Component\Utility\String;
 use Drupal\Component\Utility\Xss;
-use Drupal\Core\Utility\Title;
 use Drupal\simpletest\WebTestBase;
 
 /**
@@ -37,7 +36,7 @@ class PageTitleTest extends WebTestBase {
 
     $this->drupalCreateContentType(array('type' => 'page', 'name' => 'Basic page'));
 
-    $this->content_user = $this->drupalCreateUser(array('create page content', 'access content', 'administer themes', 'administer site configuration'));
+    $this->content_user = $this->drupalCreateUser(array('create page content', 'access content', 'administer themes', 'administer site configuration', 'link to any page'));
     $this->drupalLogin($this->content_user);
   }
 

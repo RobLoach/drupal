@@ -32,6 +32,11 @@ abstract class EntityStorageBase extends EntityHandlerBase implements EntityStor
   /**
    * Information about the entity type.
    *
+   * The following code returns the same object:
+   * @code
+   * \Drupal::entityManager()->getDefinition($this->entityTypeId)
+   * @endcode
+   *
    * @var \Drupal\Core\Entity\EntityTypeInterface
    */
   protected $entityType;
@@ -51,6 +56,13 @@ abstract class EntityStorageBase extends EntityHandlerBase implements EntityStor
    * @var string
    */
   protected $uuidKey;
+
+  /**
+   * The name of the entity langcode property.
+   *
+   * @var string
+   */
+  protected $langcodeKey;
 
   /**
    * The UUID service.
@@ -77,6 +89,7 @@ abstract class EntityStorageBase extends EntityHandlerBase implements EntityStor
     $this->entityType = $entity_type;
     $this->idKey = $this->entityType->getKey('id');
     $this->uuidKey = $this->entityType->getKey('uuid');
+    $this->langcodeKey = $this->entityType->getKey('langcode');
     $this->entityClass = $this->entityType->getClass();
   }
 
@@ -460,7 +473,26 @@ abstract class EntityStorageBase extends EntityHandlerBase implements EntityStor
    * {@inheritdoc}
    */
   public function getQuery($conjunction = 'AND') {
-    return \Drupal::entityQuery($this->getEntityTypeId(), $conjunction);
+    // Access the service directly rather than entity.query factory so the
+    // storage's current entity type is used.
+    return \Drupal::service($this->getQueryServiceName())->get($this->entityType, $conjunction);
   }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getAggregateQuery($conjunction = 'AND') {
+    // Access the service directly rather than entity.query factory so the
+    // storage's current entity type is used.
+    return \Drupal::service($this->getQueryServiceName())->getAggregate($this->entityType, $conjunction);
+  }
+
+  /**
+   * Gets the name of the service for the query for this entity storage.
+   *
+   * @return string
+   *   The name of the service for the query for this entity storage.
+   */
+  abstract protected function getQueryServiceName();
 
 }

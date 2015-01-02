@@ -46,8 +46,30 @@ class ImageFieldDisplayTest extends ImageFieldTestBase {
    * Test image formatters on node display.
    */
   function _testImageFieldFormatters($scheme) {
+    $node_storage = $this->container->get('entity.manager')->getStorage('node');
     $field_name = strtolower($this->randomMachineName());
     $this->createImageField($field_name, 'article', array('uri_scheme' => $scheme));
+
+    // Go to manage display page.
+    $this->drupalGet("admin/structure/types/manage/article/display");
+
+    // Test for existence of link to image styles configuration.
+    $this->drupalPostAjaxForm(NULL, array(), "{$field_name}_settings_edit");
+    $this->assertLinkByHref(\Drupal::url('image.style_list'), 0, 'Link to image styles configuration is found');
+
+    // Remove 'administer image styles' permission from testing admin user.
+    $admin_user_roles = $this->admin_user->getRoles(TRUE);
+    user_role_change_permissions(reset($admin_user_roles), array('administer image styles' => FALSE));
+
+    // Go to manage display page again.
+    $this->drupalGet("admin/structure/types/manage/article/display");
+
+    // Test for absence of link to image styles configuration.
+    $this->drupalPostAjaxForm(NULL, array(), "{$field_name}_settings_edit");
+    $this->assertNoLinkByHref(\Drupal::url('image.style_list'), 'Link to image styles configuration is absent when permissions are insufficient');
+
+    // Restore 'administer image styles' permission to testing admin user
+    user_role_change_permissions(reset($admin_user_roles), array('administer image styles' => TRUE));
 
     // Create a new node with an image attached.
     $test_image = current($this->drupalGetTestFiles('image'));
@@ -57,7 +79,8 @@ class ImageFieldDisplayTest extends ImageFieldTestBase {
 
     // Save node.
     $nid = $this->uploadNodeImage($test_image, $field_name, 'article');
-    $node = node_load($nid, TRUE);
+    $node_storage->resetCache(array($nid));
+    $node = $node_storage->load($nid);
 
     // Test that the default formatter is being used.
     $image_uri = file_load($node->{$field_name}->target_id)->getFileUri();
@@ -165,6 +188,7 @@ class ImageFieldDisplayTest extends ImageFieldTestBase {
    * Tests for image field settings.
    */
   function testImageFieldSettings() {
+    $node_storage = $this->container->get('entity.manager')->getStorage('node');
     $test_image = current($this->drupalGetTestFiles('image'));
     list(, $test_image_extension) = explode('.', $test_image->filename);
     $field_name = strtolower($this->randomMachineName());
@@ -175,12 +199,19 @@ class ImageFieldDisplayTest extends ImageFieldTestBase {
       'max_resolution' => '100x100',
       'min_resolution' => '10x10',
       'title_field' => 1,
-      'description' => '[site:name]_description',
     );
     $widget_settings = array(
       'preview_image_style' => 'medium',
     );
     $field = $this->createImageField($field_name, 'article', array(), $field_settings, $widget_settings);
+
+    // Verify that the min/max resolution set on the field are properly
+    // extracted, and displayed, on the image field's configuration form.
+    $this->drupalGet('admin/structure/types/manage/article/fields/' . $field->id());
+    $this->assertFieldByName('field[settings][max_resolution][x]', '100', 'Expected max resolution X value of 100.');
+    $this->assertFieldByName('field[settings][max_resolution][y]', '100', 'Expected max resolution Y value of 100.');
+    $this->assertFieldByName('field[settings][min_resolution][x]', '10', 'Expected min resolution X value of 10.');
+    $this->assertFieldByName('field[settings][min_resolution][y]', '10', 'Expected min resolution Y value of 10.');
 
     $this->drupalGet('node/add/article');
     $this->assertText(t('50 KB limit.'), 'Image widget max file size is displayed on article form.');
@@ -195,7 +226,8 @@ class ImageFieldDisplayTest extends ImageFieldTestBase {
     $this->assertFieldByName($field_name . '[0][title]', '', 'Title field displayed on article form.');
     // Verify that the attached image is being previewed using the 'medium'
     // style.
-    $node = node_load($nid, TRUE);
+    $node_storage->resetCache(array($nid));
+    $node = $node_storage->load($nid);
     $image_style = array(
       '#theme' => 'image_style',
       '#uri' => file_load($node->{$field_name}->target_id)->getFileUri(),
@@ -266,6 +298,7 @@ class ImageFieldDisplayTest extends ImageFieldTestBase {
    * Test use of a default image with an image field.
    */
   function testImageFieldDefaultImage() {
+    $node_storage = $this->container->get('entity.manager')->getStorage('node');
     // Create a new image field.
     $field_name = strtolower($this->randomMachineName());
     $this->createImageField($field_name, 'article');
@@ -313,7 +346,8 @@ class ImageFieldDisplayTest extends ImageFieldTestBase {
     // Create a node with an image attached and ensure that the default image
     // is not displayed.
     $nid = $this->uploadNodeImage($images[1], $field_name, 'article');
-    $node = node_load($nid, TRUE);
+    $node_storage->resetCache(array($nid));
+    $node = $node_storage->load($nid);
     $image = array(
       '#theme' => 'image',
       '#uri' => file_load($node->{$field_name}->target_id)->getFileUri(),

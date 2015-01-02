@@ -20,7 +20,7 @@ use Drupal\simpletest\WebTestBase;
 class CommentLanguageTest extends WebTestBase {
 
   /**
-   * Modules to enable.
+   * Modules to install.
    *
    * We also use the language_test module here to be able to turn on content
    * language negotiation. Drupal core does not provide a way in itself to do
@@ -44,7 +44,7 @@ class CommentLanguageTest extends WebTestBase {
     $this->drupalPostForm('admin/config/regional/language/add', $edit, t('Add language'));
 
     // Set "Article" content type to use multilingual support.
-    $edit = array('language_configuration[language_show]' => TRUE);
+    $edit = array('language_configuration[language_alterable]' => TRUE);
     $this->drupalPostForm('admin/structure/types/manage/article', $edit, t('Save content type'));
 
     // Enable content language negotiation UI.
@@ -93,7 +93,7 @@ class CommentLanguageTest extends WebTestBase {
       $edit = array(
         'title[0][value]' => $title,
         'body[0][value]' => $this->randomMachineName(),
-        'langcode' => $node_langcode,
+        'langcode[0][value]' => $node_langcode,
         'comment[0][status]' => CommentItemInterface::OPEN,
       );
       $this->drupalPostForm("node/add/article", $edit, t('Save'));

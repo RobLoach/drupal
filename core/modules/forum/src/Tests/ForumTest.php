@@ -10,6 +10,7 @@ namespace Drupal\forum\Tests;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Link;
 use Drupal\simpletest\WebTestBase;
+use Drupal\Core\Url;
 
 /**
  * Create, view, edit, delete, and change forum entries and verify its
@@ -99,7 +100,7 @@ class ForumTest extends WebTestBase {
       'skip comment approval',
       'access comments',
     ));
-    $this->drupalPlaceBlock('system_help_block', array('region' => 'help'));
+    $this->drupalPlaceBlock('help_block', array('region' => 'help'));
   }
 
   /**
@@ -107,9 +108,9 @@ class ForumTest extends WebTestBase {
    */
   function testForum() {
     //Check that the basic forum install creates a default forum topic
-    $this->drupalGet("/forum");
+    $this->drupalGet('/forum');
     // Look for the "General discussion" default forum
-    $this->assertText(t("General discussion"), "Found the default forum at the /forum listing");
+    $this->assertRaw(t('<a href="'. Url::fromRoute('forum.page', ['taxonomy_term' => 1]) .'">General discussion</a>'), "Found the default forum at the /forum listing");
 
     // Do the admin tests.
     $this->doAdminTests($this->admin_user);
@@ -121,9 +122,7 @@ class ForumTest extends WebTestBase {
     $this->drupalLogin($this->web_user);
     // Verify that this user is shown a message that they may not post content.
     $this->drupalGet('forum/' . $this->forum['tid']);
-    // @todo Restore test coverage in https://www.drupal.org/node/1853072.
-    //$this->assertText(t('You are not allowed to post new content in the forum'), "Authenticated user without permission to post forum content is shown message in local tasks to that effect.");
-
+    $this->assertText(t('You are not allowed to post new content in the forum'), "Authenticated user without permission to post forum content is shown message in local tasks to that effect.");
 
     // Log in, and do basic tests for a user with permission to edit any forum
     // content.
@@ -203,6 +202,11 @@ class ForumTest extends WebTestBase {
     $vocabulary->save();
     $this->drupalGet('forum');
     $this->assertTitle(t('Discussions | Drupal'));
+
+    // Test anonymous action link.
+    $this->drupalLogout();
+    $this->drupalGet('forum/' . $this->forum['tid']);
+    $this->assertLink(t('Log in to post new content in the forum.'));
   }
 
   /**
@@ -213,7 +217,7 @@ class ForumTest extends WebTestBase {
    */
   function testAddOrphanTopic() {
     // Must remove forum topics to test creating orphan topics.
-    $vid = \Drupal::config('forum.settings')->get('vocabulary');
+    $vid = $this->config('forum.settings')->get('vocabulary');
     $tids = \Drupal::entityQuery('taxonomy_term')
       ->condition('vid', $vid)
       ->execute();
@@ -230,7 +234,7 @@ class ForumTest extends WebTestBase {
     $this->assertEqual(0, $nid_count, 'A forum node was not created when missing a forum vocabulary.');
 
     // Reset the defaults for future tests.
-    \Drupal::moduleHandler()->install(array('forum'));
+    \Drupal::service('module_installer')->install(array('forum'));
   }
 
   /**
@@ -318,7 +322,7 @@ class ForumTest extends WebTestBase {
    */
   function editForumVocabulary() {
     // Backup forum taxonomy.
-    $vid = \Drupal::config('forum.settings')->get('vocabulary');
+    $vid = $this->config('forum.settings')->get('vocabulary');
     $original_vocabulary = entity_load('taxonomy_vocabulary', $vid);
 
     // Generate a random name and description.
@@ -384,7 +388,7 @@ class ForumTest extends WebTestBase {
     );
 
     // Verify forum.
-    $term = db_query("SELECT * FROM {taxonomy_term_field_data} t WHERE t.vid = :vid AND t.name = :name AND t.description__value = :desc AND t.default_langcode = 1", array(':vid' => \Drupal::config('forum.settings')->get('vocabulary'), ':name' => $name, ':desc' => $description))->fetchAssoc();
+    $term = db_query("SELECT * FROM {taxonomy_term_field_data} t WHERE t.vid = :vid AND t.name = :name AND t.description__value = :desc AND t.default_langcode = 1", array(':vid' => $this->config('forum.settings')->get('vocabulary'), ':name' => $name, ':desc' => $description))->fetchAssoc();
     $this->assertTrue(!empty($term), 'The ' . $type . ' exists in the database');
 
     // Verify forum hierarchy.

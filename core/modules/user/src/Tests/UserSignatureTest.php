@@ -27,7 +27,7 @@ class UserSignatureTest extends WebTestBase {
     parent::setUp();
 
     // Enable user signatures.
-    \Drupal::config('user.settings')->set('signatures', 1)->save();
+    $this->config('user.settings')->set('signatures', 1)->save();
 
     // Create Basic page node type.
     $this->drupalCreateContentType(array('type' => 'page', 'name' => 'Basic page'));
@@ -119,19 +119,19 @@ class UserSignatureTest extends WebTestBase {
     // Log in as an administrator and edit the comment to use Full HTML, so
     // that the comment text itself is not filtered at all.
     $this->drupalLogin($this->admin_user);
-    $edit['comment_body[0][format]'] = $this->full_html_format->format;
+    $edit['comment_body[0][format]'] = $this->full_html_format->id();
     $this->drupalPostForm('comment/' . $comment_id . '/edit', $edit, t('Save'));
 
     // Assert that the signature did not make it through unfiltered.
     $this->drupalGet('node/' . $node->id());
     $this->assertNoRaw($signature_text, 'Unfiltered signature text not found.');
-    $this->assertRaw(check_markup($signature_text, $this->filtered_html_format->format), 'Filtered signature text found.');
+    $this->assertRaw(check_markup($signature_text, $this->filtered_html_format->id()), 'Filtered signature text found.');
     // Verify that the user signature's text format's cache tag is present.
     $this->drupalGet('node/' . $node->id());
     $this->assertTrue(in_array('filter_format:filtered_html_format', explode(' ', $this->drupalGetHeader('X-Drupal-Cache-Tags'))));
 
     // Verify the signature field is available on Manage form display page.
-    \Drupal::config('user.settings')->set('signatures', 0)->save();
+    $this->config('user.settings')->set('signatures', 0)->save();
     \Drupal::entityManager()->clearCachedFieldDefinitions();
     $this->drupalGet('admin/config/people/accounts/form-display');
     $this->assertNoText('Signature settings');

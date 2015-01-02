@@ -189,7 +189,7 @@ class ConfigEntityStorage extends EntityStorageBase implements ConfigEntityStora
    */
   protected function doCreate(array $values) {
     // Set default language to site default if not provided.
-    $values += array('langcode' => $this->languageManager->getDefaultLanguage()->getId());
+    $values += array($this->langcodeKey => $this->languageManager->getDefaultLanguage()->getId());
     $entity = new $this->entityClass($values, $this->entityTypeId);
 
     return $entity;
@@ -250,10 +250,7 @@ class ConfigEntityStorage extends EntityStorageBase implements ConfigEntityStora
     }
 
     // Retrieve the desired properties and set them in config.
-    $record = $this->mapToStorageRecord($entity);
-    foreach ($record as $key => $value) {
-      $config->set($key, $value);
-    }
+    $config->setData($this->mapToStorageRecord($entity));
     $config->save();
 
     return $is_new ? SAVED_NEW : SAVED_UPDATED;
@@ -337,9 +334,9 @@ class ConfigEntityStorage extends EntityStorageBase implements ConfigEntityStora
   }
 
   /**
-   * Implements Drupal\Core\Entity\EntityStorageInterface::getQueryServicename().
+   * {@inheritdoc}
    */
-  public function getQueryServicename() {
+  protected function getQueryServiceName() {
     return 'entity.query.config';
   }
 

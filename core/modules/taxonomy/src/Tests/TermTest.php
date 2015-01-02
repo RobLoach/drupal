@@ -10,6 +10,7 @@ namespace Drupal\taxonomy\Tests;
 use Drupal\Component\Serialization\Json;
 use Drupal\Component\Utility\String;
 use Drupal\Component\Utility\Tags;
+use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Field\FieldStorageDefinitionInterface;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\taxonomy\Entity\Term;
@@ -103,7 +104,7 @@ class TermTest extends TaxonomyTestBase {
    */
   function testTaxonomyTermChildTerms() {
     // Set limit to 10 terms per page. Set variable to 9 so 10 terms appear.
-    \Drupal::config('taxonomy.settings')->set('terms_per_page_admin', '9')->save();
+    $this->config('taxonomy.settings')->set('terms_per_page_admin', '9')->save();
     $term1 = $this->createTerm($this->vocabulary);
     $terms_array = '';
 
@@ -204,11 +205,14 @@ class TermTest extends TaxonomyTestBase {
         ),
       ))
       ->save();
+    // Prefix the terms with a letter to ensure there is no clash in the first
+    // three letters.
+    // @see https://www.drupal.org/node/2397691
     $terms = array(
-      'term1' => $this->randomMachineName(),
-      'term2' => $this->randomMachineName(),
-      'term3' => $this->randomMachineName() . ', ' . $this->randomMachineName(),
-      'term4' => $this->randomMachineName(),
+      'term1' => 'a'. $this->randomMachineName(),
+      'term2' => 'b'. $this->randomMachineName(),
+      'term3' => 'c'. $this->randomMachineName() . ', ' . $this->randomMachineName(),
+      'term4' => 'd'. $this->randomMachineName(),
     );
 
     $edit = array();
@@ -348,7 +352,7 @@ class TermTest extends TaxonomyTestBase {
    * Save, edit and delete a term using the user interface.
    */
   function testTermInterface() {
-    \Drupal::moduleHandler()->install(array('views'));
+    \Drupal::service('module_installer')->install(array('views'));
     $edit = array(
       'name[0][value]' => $this->randomMachineName(12),
       'description[0][value]' => $this->randomMachineName(100),
@@ -535,7 +539,7 @@ class TermTest extends TaxonomyTestBase {
     $this->assertFalse($terms, 'No term loaded with an invalid name.');
 
     // Try to load the term using a substring of the name.
-    $terms = taxonomy_term_load_multiple_by_name(drupal_substr($term->getName(), 2), 'No term loaded with a substring of the name.');
+    $terms = taxonomy_term_load_multiple_by_name(Unicode::substr($term->getName(), 2), 'No term loaded with a substring of the name.');
     $this->assertFalse($terms);
 
     // Create a new term in a different vocabulary with the same name.

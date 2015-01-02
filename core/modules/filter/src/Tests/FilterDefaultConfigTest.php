@@ -7,16 +7,16 @@
 
 namespace Drupal\filter\Tests;
 
-use Drupal\simpletest\DrupalUnitTestBase;
+use Drupal\simpletest\KernelTestBase;
 
 /**
  * Tests text format default configuration.
  *
  * @group filter
  */
-class FilterDefaultConfigTest extends DrupalUnitTestBase {
+class FilterDefaultConfigTest extends KernelTestBase {
 
-  public static $modules = array('system', 'user', 'filter', 'filter_test', 'entity');
+  public static $modules = array('system', 'user', 'filter', 'filter_test');
 
   protected function setUp() {
     parent::setUp();

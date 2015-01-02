@@ -1,3 +1,9 @@
+langcode: en
+status: true
+dependencies:
+  module:
+    - aggregator
+    - user
 id: aggregator_sources
 label: 'Aggregator sources'
 module: aggregator
@@ -6,28 +12,20 @@ tag: aggregator
 base_table: aggregator_feed
 base_field: fid
 core: 8.x
-langcode: en
-status: true
-dependencies:
-  module:
-    - aggregator
 display:
   default:
     display_plugin: default
     id: default
     display_title: Master
     position: 0
-    provider: views
     display_options:
       access:
         type: perm
         options:
           perm: 'access news feeds'
-        provider: null
       cache:
         type: none
         options: {  }
-        provider: views
       query:
         type: views_query
         options:
@@ -36,7 +34,6 @@ display:
           replica: false
           query_comment: false
           query_tags: {  }
-        provider: views
       exposed_form:
         type: basic
         options:
@@ -47,7 +44,6 @@ display:
           expose_sort_order: true
           sort_asc_label: Asc
           sort_desc_label: Desc
-        provider: views
       pager:
         type: full
         options:
@@ -82,11 +78,9 @@ display:
           field: fid
           id: fid
           plugin_id: numeric
-          provider: views
           relationship: none
           group_type: group
           admin_label: ''
-          dependencies: {  }
           label: ''
           exclude: false
           alter:
@@ -137,6 +131,8 @@ display:
           format_plural_plural: '@count'
           prefix: ''
           suffix: ''
+          entity_type: aggregator_feed
+          entity_field: fid
       filters: {  }
       sorts: {  }
       title: Sources
@@ -147,29 +143,11 @@ display:
       arguments: {  }
       field_langcode: '***LANGUAGE_language_content***'
       field_langcode_add_to_query: null
-  page_1:
-    display_plugin: page
-    id: page_1
-    display_title: Page
-    position: 1
-    provider: views
-    display_options:
-      field_langcode: '***LANGUAGE_language_content***'
-      field_langcode_add_to_query: null
-      path: aggregator/sources
-      menu:
-        type: normal
-        title: Sources
-        description: ''
-        weight: 0
-        context: '0'
-        menu_name: tools
   feed_1:
     display_plugin: feed
     id: feed_1
     display_title: Feed
     position: 2
-    provider: views
     display_options:
       field_langcode: '***LANGUAGE_language_content***'
       field_langcode_add_to_query: null
@@ -177,7 +155,6 @@ display:
         type: opml
         options:
           grouping: {  }
-        provider: views
       path: aggregator/opml
       fields:
         title:
@@ -187,9 +164,6 @@ display:
           relationship: none
           group_type: group
           admin_label: ''
-          dependencies:
-            module:
-              - aggregator
           label: ''
           exclude: false
           alter:
@@ -233,7 +207,8 @@ display:
           hide_alter_empty: true
           display_as_link: false
           plugin_id: aggregator_title_link
-          provider: aggregator
+          entity_type: aggregator_feed
+          entity_field: title
         url:
           id: url
           table: aggregator_feed
@@ -241,9 +216,6 @@ display:
           relationship: none
           group_type: group
           admin_label: ''
-          dependencies:
-            module:
-              - views
           label: ''
           exclude: false
           alter:
@@ -287,7 +259,8 @@ display:
           hide_alter_empty: true
           display_as_link: false
           plugin_id: url
-          provider: views
+          entity_type: aggregator_feed
+          entity_field: url
         description:
           id: description
           table: aggregator_feed
@@ -295,9 +268,6 @@ display:
           relationship: none
           group_type: group
           admin_label: ''
-          dependencies:
-            module:
-              - views
           label: ''
           exclude: false
           alter:
@@ -340,7 +310,8 @@ display:
           empty_zero: false
           hide_alter_empty: true
           plugin_id: xss
-          provider: views
+          entity_type: aggregator_feed
+          entity_field: description
         link:
           id: link
           table: aggregator_feed
@@ -348,9 +319,6 @@ display:
           relationship: none
           group_type: group
           admin_label: ''
-          dependencies:
-            module:
-              - views
           label: ''
           exclude: false
           alter:
@@ -394,7 +362,8 @@ display:
           hide_alter_empty: true
           display_as_link: false
           plugin_id: url
-          provider: views
+          entity_type: aggregator_feed
+          entity_field: link
       defaults:
         fields: false
         title: false
@@ -409,9 +378,24 @@ display:
           language_field: ''
           xml_url_field: url
           url_field: ''
-        provider: views
       displays:
         page_1: page_1
         default: '0'
       title: 'OPML feed'
       sitename_title: true
+  page_1:
+    display_plugin: page
+    id: page_1
+    display_title: Page
+    position: 1
+    display_options:
+      field_langcode: '***LANGUAGE_language_content***'
+      field_langcode_add_to_query: null
+      path: aggregator/sources
+      menu:
+        type: normal
+        title: Sources
+        description: ''
+        weight: 0
+        context: '0'
+        menu_name: tools

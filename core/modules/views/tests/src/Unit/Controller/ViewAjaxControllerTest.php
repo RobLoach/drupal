@@ -128,15 +128,15 @@ class ViewAjaxControllerTest extends UnitTestCase {
     $display_handler->expects($this->never())
       ->method('setOption');
 
-    $display_bag = $this->getMockBuilder('Drupal\views\DisplayBag')
+    $display_collection = $this->getMockBuilder('Drupal\views\DisplayPluginCollection')
       ->disableOriginalConstructor()
       ->getMock();
-    $display_bag->expects($this->any())
+    $display_collection->expects($this->any())
       ->method('get')
       ->with('page_1')
       ->will($this->returnValue($display_handler));
 
-    $executable->displayHandlers = $display_bag;
+    $executable->displayHandlers = $display_collection;
 
     $response = $this->viewAjaxController->ajaxView($request);
     $this->assertTrue($response instanceof ViewAjaxResponse);
@@ -167,6 +167,27 @@ class ViewAjaxControllerTest extends UnitTestCase {
   }
 
   /**
+   * Tests a valid view with arguments.
+   */
+  public function testAjaxViewWithEmptyArguments() {
+    $request = new Request();
+    $request->request->set('view_name', 'test_view');
+    $request->request->set('view_display_id', 'page_1');
+    // Simulate a request that has a second, empty argument.
+    $request->request->set('view_args', 'arg1/');
+
+    list($view, $executable) = $this->setupValidMocks();
+    $executable->expects($this->once())
+      ->method('preview')
+      ->with('page_1', $this->identicalTo(array('arg1', NULL)));
+
+    $response = $this->viewAjaxController->ajaxView($request);
+    $this->assertTrue($response instanceof ViewAjaxResponse);
+
+    $this->assertViewResultCommand($response);
+  }
+
+  /**
    * Tests a valid view with a pager.
    */
   public function testAjaxViewWithPager() {
@@ -186,14 +207,14 @@ class ViewAjaxControllerTest extends UnitTestCase {
       ->method('setOption', '0')
       ->with($this->equalTo('pager_element'));
 
-    $display_bag = $this->getMockBuilder('Drupal\views\DisplayBag')
+    $display_collection = $this->getMockBuilder('Drupal\views\DisplayPluginCollection')
       ->disableOriginalConstructor()
       ->getMock();
-    $display_bag->expects($this->any())
+    $display_collection->expects($this->any())
       ->method('get')
       ->with('page_1')
       ->will($this->returnValue($display_handler));
-    $executable->displayHandlers = $display_bag;
+    $executable->displayHandlers = $display_collection;
 
     $response = $this->viewAjaxController->ajaxView($request);
     $this->assertTrue($response instanceof ViewAjaxResponse);

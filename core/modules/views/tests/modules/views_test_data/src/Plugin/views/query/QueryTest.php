@@ -146,5 +146,13 @@ class QueryTest extends QueryPluginBase {
     return FALSE;
   }
 
+  /**
+   * {@inheritdoc}
+   */
+  public function calculateDependencies() {
+    return parent::calculateDependencies() + [
+      'content' => ['QueryTest'],
+    ];
+  }
 
 }

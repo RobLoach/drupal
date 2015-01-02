@@ -7,7 +7,7 @@
 
 namespace Drupal\system\Tests\Action;
 
-use Drupal\simpletest\DrupalUnitTestBase;
+use Drupal\simpletest\KernelTestBase;
 use Drupal\Core\Action\ActionInterface;
 
 /**
@@ -15,12 +15,12 @@ use Drupal\Core\Action\ActionInterface;
  *
  * @group Action
  */
-class ActionUnitTest extends DrupalUnitTestBase {
+class ActionUnitTest extends KernelTestBase {
 
   /**
    * {@inheritdoc}
    */
-  public static $modules = array('system','entity' , 'field', 'user', 'action_test');
+  public static $modules = array('system', 'field', 'user', 'action_test');
 
   /**
    * The action manager.
@@ -91,7 +91,7 @@ class ActionUnitTest extends DrupalUnitTestBase {
     $action->save();
 
     $expected = array(
-      'entity' => array(
+      'config' => array(
         'user.role.' . DRUPAL_ANONYMOUS_RID,
       ),
       'module' => array(

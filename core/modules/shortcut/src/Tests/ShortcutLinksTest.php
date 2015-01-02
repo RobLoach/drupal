@@ -77,7 +77,7 @@ class ShortcutLinksTest extends ShortcutTestBase {
 
     // Login as non admin user, to check that access is checked when creating
     // shortcuts.
-    $this->drupalLogin($this->shortcut_user);
+    $this->drupalLogin($this->shortcutUser);
     $title = $this->randomMachineName();
     $form_data = [
       'title[0][value]' => $title,
@@ -100,8 +100,8 @@ class ShortcutLinksTest extends ShortcutTestBase {
    */
   public function testShortcutQuickLink() {
     \Drupal::service('theme_handler')->install(array('seven'));
-    \Drupal::config('system.theme')->set('admin', 'seven')->save();
-    $this->container->get('config.factory')->get('node.settings')->set('use_admin_theme', '1')->save();
+    $this->config('system.theme')->set('admin', 'seven')->save();
+    $this->config('node.settings')->set('use_admin_theme', '1')->save();
     $this->container->get('router.builder')->rebuild();
 
     $this->drupalLogin($this->root_user);
@@ -206,7 +206,7 @@ class ShortcutLinksTest extends ShortcutTestBase {
   public function testNoShortcutLink() {
     // Change to a theme that displays shortcuts.
     \Drupal::service('theme_handler')->install(array('seven'));
-    \Drupal::config('system.theme')
+    $this->config('system.theme')
       ->set('default', 'seven')
       ->save();
 
@@ -237,7 +237,7 @@ class ShortcutLinksTest extends ShortcutTestBase {
   public function testAccessShortcutsPermission() {
     // Change to a theme that displays shortcuts.
     \Drupal::service('theme_handler')->install(array('seven'));
-    \Drupal::config('system.theme')
+    $this->config('system.theme')
       ->set('default', 'seven')
       ->save();
 

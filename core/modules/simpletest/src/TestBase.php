@@ -161,6 +161,15 @@ abstract class TestBase {
   protected $public_files_directory;
 
   /**
+   * The private file directory for the test environment.
+   *
+   * This is set in TestBase::prepareEnvironment().
+   *
+   * @var string
+   */
+  protected $private_files_directory;
+
+  /**
    * Whether to die in case any test assertion fails.
    *
    * @var boolean
@@ -201,6 +210,15 @@ abstract class TestBase {
    * The name of the session cookie.
    */
   protected $originalSessionName;
+
+  /**
+   * Set to TRUE to strict check all configuration saved.
+   *
+   * @see \Drupal\Core\Config\Testing\ConfigSchemaChecker
+   *
+   * @var bool
+   */
+  protected $strictConfigSchema = TRUE;
 
   /**
    * Constructor for Test.
@@ -780,7 +798,7 @@ abstract class TestBase {
     }
 
     TestServiceProvider::$currentTest = $this;
-    $simpletest_config = \Drupal::config('simpletest.settings');
+    $simpletest_config = $this->config('simpletest.settings');
 
     // Unless preset from run-tests.sh, retrieve the current verbose setting.
     if (!isset($this->verbose)) {
@@ -1475,6 +1493,7 @@ abstract class TestBase {
         $this->container->get('lock'),
         $this->container->get('config.typed'),
         $this->container->get('module_handler'),
+        $this->container->get('module_installer'),
         $this->container->get('theme_handler'),
         $this->container->get('string_translation')
       );
@@ -1497,4 +1516,23 @@ abstract class TestBase {
       $target_storage->write($name, $source_storage->read($name));
     }
   }
+
+  /**
+   * Configuration accessor for tests. Returns non-overriden configuration.
+   *
+   * @param $name
+   *   Configuration name.
+   *
+   * @return \Drupal\Core\Config\Config
+   *   The configuration object with original configuration data.
+   */
+  protected function config($name) {
+    $config_factory = \Drupal::configFactory();
+    $old_state = $config_factory->getOverrideState();
+    $config_factory->setOverrideState(FALSE);
+    $config = $config_factory->get($name);
+    $config_factory->setOverrideState($old_state);
+    return $config;
+  }
+
 }

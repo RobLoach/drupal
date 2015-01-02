@@ -47,6 +47,7 @@ use Drupal\user\UserInterface;
  *     "revision" = "vid",
  *     "bundle" = "type",
  *     "label" = "title",
+ *     "langcode" = "langcode",
  *     "uuid" = "uuid"
  *   },
  *   bundle_entity_type = "node_type",
@@ -120,10 +121,10 @@ class Node extends ContentEntityBase implements NodeInterface {
   public static function preDelete(EntityStorageInterface $storage, array $entities) {
     parent::preDelete($storage, $entities);
 
-    // Assure that all nodes deleted are removed from the search index.
+    // Ensure that all nodes deleted are removed from the search index.
     if (\Drupal::moduleHandler()->moduleExists('search')) {
       foreach ($entities as $entity) {
-        search_reindex($entity->nid->value, 'node_search');
+        search_index_clear('node_search', $entity->nid->value);
       }
     }
   }
@@ -347,9 +348,16 @@ class Node extends ContentEntityBase implements NodeInterface {
       ->setReadOnly(TRUE);
 
     $fields['langcode'] = BaseFieldDefinition::create('language')
-      ->setLabel(t('Language code'))
+      ->setLabel(t('Language'))
       ->setDescription(t('The node language code.'))
-      ->setRevisionable(TRUE);
+      ->setRevisionable(TRUE)
+      ->setDisplayOptions('view', array(
+        'type' => 'hidden',
+      ))
+      ->setDisplayOptions('form', array(
+        'type' => 'language_select',
+        'weight' => 2,
+      ));
 
     $fields['title'] = BaseFieldDefinition::create('string')
       ->setLabel(t('Title'))

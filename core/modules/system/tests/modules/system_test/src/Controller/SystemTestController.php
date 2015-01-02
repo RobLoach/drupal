@@ -49,7 +49,7 @@ class SystemTestController extends ControllerBase {
    *   The text to display.
    */
   public function mainContentFallback() {
-    return $this->t('Content to test main content fallback');
+    return ['#markup' => $this->t('Content to test main content fallback')];
   }
 
   /**
@@ -65,7 +65,14 @@ class SystemTestController extends ControllerBase {
 
     // Remove the first.
     unset($_SESSION['messages']['status'][0]);
-    return '';
+
+    // Duplicate message check.
+    drupal_set_message('Non Duplicated message', 'status', FALSE);
+    drupal_set_message('Non Duplicated message', 'status', FALSE);
+
+    drupal_set_message('Duplicated message', 'status', TRUE);
+    drupal_set_message('Duplicated message', 'status', TRUE);
+    return [];
   }
 
   /**
@@ -93,10 +100,10 @@ class SystemTestController extends ControllerBase {
    */
   public function lockPersist($lock_name) {
     if ($this->persistentLock->acquire($lock_name)) {
-      return 'TRUE: Lock successfully acquired in SystemTestController::lockPersist()';
+      return ['#markup' => 'TRUE: Lock successfully acquired in SystemTestController::lockPersist()'];
     }
     else {
-      return 'FALSE: Lock not acquired in SystemTestController::lockPersist()';
+      return ['#markup' => 'FALSE: Lock not acquired in SystemTestController::lockPersist()'];
     }
   }
 
@@ -154,8 +161,9 @@ class SystemTestController extends ControllerBase {
     // @see _drupal_shutdown_function()
     // @see \Drupal\system\Tests\System\ShutdownFunctionsTest
     if (function_exists('fastcgi_finish_request')) {
-      return 'The function fastcgi_finish_request exists when serving the request.';
+      return ['#markup' => 'The function fastcgi_finish_request exists when serving the request.'];
     }
+    return [];
   }
 
   /**

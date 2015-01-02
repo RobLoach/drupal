@@ -109,27 +109,20 @@ class ConfigFactory implements ConfigFactoryInterface, EventSubscriberInterface 
       return $config[$name];
     }
     else {
+      // If the configuration object does not exist in the configuration
+      // storage, create a new object and add it to the static cache.
       $cache_key = $this->getConfigCacheKey($name);
-      // If the config object has been deleted it will already exist in the
-      // cache but self::loadMultiple does not return such objects.
-      // @todo Explore making ConfigFactory a listener to the config.delete
-      //   event to reset the static cache when this occurs.
-      if (!isset($this->cache[$cache_key])) {
-        // If the configuration object does not exist in the configuration
-        // storage or static cache create a new object and add it to the static
-        // cache.
-        $this->cache[$cache_key] = new Config($name, $this->storage, $this->eventDispatcher, $this->typedConfigManager);
+      $this->cache[$cache_key] = new Config($name, $this->storage, $this->eventDispatcher, $this->typedConfigManager);
 
-        if ($this->useOverrides) {
-          // Get and apply any overrides.
-          $overrides = $this->loadOverrides(array($name));
-          if (isset($overrides[$name])) {
-            $this->cache[$cache_key]->setModuleOverride($overrides[$name]);
-          }
-          // Apply any settings.php overrides.
-          if (isset($GLOBALS['config'][$name])) {
-            $this->cache[$cache_key]->setSettingsOverride($GLOBALS['config'][$name]);
-          }
+      if ($this->useOverrides) {
+        // Get and apply any overrides.
+        $overrides = $this->loadOverrides(array($name));
+        if (isset($overrides[$name])) {
+          $this->cache[$cache_key]->setModuleOverride($overrides[$name]);
+        }
+        // Apply any settings.php overrides.
+        if (isset($GLOBALS['config'][$name])) {
+          $this->cache[$cache_key]->setSettingsOverride($GLOBALS['config'][$name]);
         }
       }
       return $this->cache[$cache_key];
@@ -143,10 +136,8 @@ class ConfigFactory implements ConfigFactoryInterface, EventSubscriberInterface 
     $list = array();
 
     foreach ($names as $key => $name) {
-      // @todo: Deleted configuration stays in $this->cache, only return
-      //   configuration objects that are not new.
       $cache_key = $this->getConfigCacheKey($name);
-      if (isset($this->cache[$cache_key]) && !$this->cache[$cache_key]->isNew()) {
+      if (isset($this->cache[$cache_key])) {
         $list[$name] = $this->cache[$cache_key];
         unset($names[$key]);
       }
@@ -228,8 +219,9 @@ class ConfigFactory implements ConfigFactoryInterface, EventSubscriberInterface 
    */
   public function rename($old_name, $new_name) {
     $this->storage->rename($old_name, $new_name);
-    $old_cache_key = $this->getConfigCacheKey($old_name);
-    if (isset($this->cache[$old_cache_key])) {
+
+    // Clear out the static cache of any references to the old name.
+    foreach ($this->getConfigCacheKeys($old_name) as $old_cache_key) {
       unset($this->cache[$old_cache_key]);
     }
 
@@ -319,10 +311,24 @@ class ConfigFactory implements ConfigFactoryInterface, EventSubscriberInterface 
   }
 
   /**
+   * Removes stale static cache entries when configuration is deleted.
+   *
+   * @param \Drupal\Core\Config\ConfigCrudEvent $event
+   *   The configuration event.
+   */
+  public function onConfigDelete(ConfigCrudEvent $event) {
+    // Ensure that the static cache does not contain deleted configuration.
+    foreach ($this->getConfigCacheKeys($event->getConfig()->getName()) as $cache_key) {
+      unset($this->cache[$cache_key]);
+    }
+  }
+
+  /**
    * {@inheritdoc}
    */
   static function getSubscribedEvents() {
     $events[ConfigEvents::SAVE][] = array('onConfigSave', 255);
+    $events[ConfigEvents::DELETE][] = array('onConfigDelete', 255);
     return $events;
   }
 

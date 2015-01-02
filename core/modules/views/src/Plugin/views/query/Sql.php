@@ -242,7 +242,7 @@ class Sql extends QueryPluginBase {
     $element = array('#parents' => array('query', 'options', 'query_tags'));
     $value = explode(',', NestedArray::getValue($form_state->getValues(), $element['#parents']));
     $value = array_filter(array_map('trim', $value));
-    form_set_value($element, $value, $form_state);
+    $form_state->setValueForElement($element, $value);
   }
 
   /**
@@ -1231,6 +1231,10 @@ class Sql extends QueryPluginBase {
     $non_aggregates = $this->getNonAggregates();
     if (count($this->having)) {
       $this->hasAggregate = TRUE;
+    }
+    elseif ($this->hasAggregate == FALSE) {
+      // Allow 'GROUP BY' even no aggregation function has been set.
+      $this->hasAggregate = $this->view->display_handler->getOption('group_by');
     }
     $groupby = array();
     if ($this->hasAggregate && (!empty($this->groupby) || !empty($non_aggregates))) {

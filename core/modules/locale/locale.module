@@ -11,6 +11,7 @@
  */
 
 use Drupal\Component\Serialization\Json;
+use Drupal\Component\Utility\String;
 use Drupal\Component\Utility\UrlHelper;
 use Drupal\Component\Utility\Xss;
 use Drupal\Core\Url;
@@ -20,7 +21,7 @@ use Drupal\Core\Language\Language;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\StringTranslation\TranslationWrapper;
 use Drupal\Core\Language\LanguageInterface;
-use Drupal\language\Entity\ConfigurableLanguage;
+use Drupal\language\ConfigurableLanguageInterface;
 use Drupal\Component\Utility\Crypt;
 
 /**
@@ -179,11 +180,6 @@ function locale_help($route_name, RouteMatchInterface $route_match) {
  */
 function locale_theme() {
   return array(
-    'locale_translate_edit_form_strings' => array(
-      'render element' => 'form',
-      'file' => 'locale.pages.inc',
-      'function' => 'theme_locale_translate_edit_form_strings',
-    ),
     'locale_translation_last_check' => array(
       'variables' => array('last' => NULL),
       'file' => 'locale.pages.inc',
@@ -198,7 +194,7 @@ function locale_theme() {
 /**
  * Implements hook_ENTITY_TYPE_insert() for 'configurable_language'.
  */
-function locale_configurable_language_insert(ConfigurableLanguage $language) {
+function locale_configurable_language_insert(ConfigurableLanguageInterface $language) {
   // @todo move these two cache clears out. See http://drupal.org/node/1293252
   // Changing the language settings impacts the interface: clear render cache.
   \Drupal::cache('render')->deleteAll();
@@ -209,7 +205,7 @@ function locale_configurable_language_insert(ConfigurableLanguage $language) {
 /**
  * Implements hook_ENTITY_TYPE_update() for 'configurable_language'.
  */
-function locale_configurable_language_update(ConfigurableLanguage $language) {
+function locale_configurable_language_update(ConfigurableLanguageInterface $language) {
   // @todo move these two cache clears out. See http://drupal.org/node/1293252
   // Changing the language settings impacts the interface: clear render cache.
   \Drupal::cache('render')->deleteAll();
@@ -220,7 +216,7 @@ function locale_configurable_language_update(ConfigurableLanguage $language) {
 /**
  * Implements hook_ENTITY_TYPE_delete() for 'configurable_language'.
  */
-function locale_configurable_language_delete(ConfigurableLanguage $language) {
+function locale_configurable_language_delete(ConfigurableLanguageInterface $language) {
   // Remove translations.
   \Drupal::service('locale.storage')->deleteTranslations(array('language' => $language->id()));
 
@@ -320,10 +316,10 @@ function locale_modules_installed($modules) {
 }
 
 /**
- * Implements hook_modules_uninstalled().
+ * Implements hook_module_preuninstall().
  */
-function locale_modules_uninstalled($modules) {
-  $components['module'] = $modules;
+function locale_module_preuninstall($module) {
+  $components['module'] = array($module);
   locale_system_remove($components);
 }
 
@@ -528,25 +524,30 @@ function locale_js_translate(array $files = array()) {
 }
 
 /**
- * Implements hook_library_alter().
+ * Implements hook_library_info_alter().
  *
  * Provides the language support for the jQuery UI Date Picker.
  */
-function locale_library_alter(array &$library, $name) {
-  if ($name == 'core/jquery.ui.datepicker') {
-    // locale.datepicker.js should be added in the JS_LIBRARY group, so that
-    // the behavior executes early. JS_LIBRARY is the default.
-    $library['dependencies'][] = 'locale/drupal.locale.datepicker';
+function locale_library_info_alter(array &$libraries, $module) {
+  if ($module === 'core' && isset($libraries['jquery.ui.datepicker'])) {
+    $libraries['jquery.ui.datepicker']['dependencies'][] = 'locale/drupal.locale.datepicker';
+    $libraries['jquery.ui.datepicker']['drupalSettings']['jquery']['ui']['datepicker'] = [
+      'isRTL' => NULL,
+      'firstDay' => NULL,
+    ];
+  }
+}
 
+/**
+ * Implements hook_js_settings_alter().
+ *
+ * Generates the values for the altered core/jquery.ui.datepicker library.
+ */
+function locale_js_settings_alter(&$settings) {
+  if (isset($settings['jquery']['ui']['datepicker'])) {
     $language_interface = \Drupal::languageManager()->getCurrentLanguage();
-    $settings['jquery']['ui']['datepicker'] = array(
-      'isRTL' => $language_interface->getDirection() == LanguageInterface::DIRECTION_RTL,
-      'firstDay' => \Drupal::config('system.date')->get('first_day'),
-    );
-    $library['js'][] = array(
-      'type' => 'setting',
-      'data' => $settings,
-    );
+    $settings['jquery']['ui']['datepicker']['isRTL'] = $language_interface->getDirection() == LanguageInterface::DIRECTION_RTL;
+    $settings['jquery']['ui']['datepicker']['firstDay'] = \Drupal::config('system.date')->get('first_day');
   }
 }
 
@@ -960,7 +961,7 @@ function locale_translation_use_remote_source() {
  * layout issues (div) or a possible attack vector (img).
  */
 function locale_string_is_safe($string) {
-  return decode_entities($string) == decode_entities(Xss::filter($string, array('a', 'abbr', 'acronym', 'address', 'b', 'bdo', 'big', 'blockquote', 'br', 'caption', 'cite', 'code', 'col', 'colgroup', 'dd', 'del', 'dfn', 'dl', 'dt', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'ins', 'kbd', 'li', 'ol', 'p', 'pre', 'q', 'samp', 'small', 'span', 'strong', 'sub', 'sup', 'table', 'tbody', 'td', 'tfoot', 'th', 'thead', 'tr', 'tt', 'ul', 'var')));
+  return String::decodeEntities($string) == String::decodeEntities(Xss::filter($string, array('a', 'abbr', 'acronym', 'address', 'b', 'bdo', 'big', 'blockquote', 'br', 'caption', 'cite', 'code', 'col', 'colgroup', 'dd', 'del', 'dfn', 'dl', 'dt', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'ins', 'kbd', 'li', 'ol', 'p', 'pre', 'q', 'samp', 'small', 'span', 'strong', 'sub', 'sup', 'table', 'tbody', 'td', 'tfoot', 'th', 'thead', 'tr', 'tt', 'ul', 'var')));
 }
 
 /**

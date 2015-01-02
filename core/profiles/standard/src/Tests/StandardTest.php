@@ -8,6 +8,7 @@
 namespace Drupal\standard\Tests;
 
 use Drupal\config\Tests\SchemaCheckTestTrait;
+use Drupal\contact\Entity\ContactForm;
 use Drupal\simpletest\WebTestBase;
 
 /**
@@ -47,7 +48,7 @@ class StandardTest extends WebTestBase {
     $this->drupalGet('');
     $this->assertText('Main navigation');
 
-    // Verify we have role = aria on system_powered_by and system_help_block
+    // Verify we have role = aria on system_powered_by and help_block
     // blocks.
     $this->drupalGet('admin/structure/block');
     $elements = $this->xpath('//div[@role=:role and @id=:id]', array(
@@ -89,15 +90,18 @@ class StandardTest extends WebTestBase {
     $this->assertText('Foobar');
     $this->assertNoText('Then she picked out two somebodies, Sally and me');
 
+    // Ensure block body exists.
+    $this->drupalGet('block/add');
+    $this->assertFieldByName('body[0][value]');
+
     // Now we have all configuration imported, test all of them for schema
     // conformance. Ensures all imported default configuration is valid when
     // standard profile modules are enabled.
     $names = $this->container->get('config.storage')->listAll();
-    $factory = $this->container->get('config.factory');
     /** @var \Drupal\Core\Config\TypedConfigManagerInterface $typed_config */
     $typed_config = $this->container->get('config.typed');
     foreach ($names as $name) {
-      $config = $factory->get($name);
+      $config = $this->config($name);
       $this->assertConfigSchema($typed_config, $name, $config->get());
     }
 
@@ -109,9 +113,13 @@ class StandardTest extends WebTestBase {
     // The installer does not have this limitation since it ensures that all of
     // the install profiles dependencies are installed before creating the
     // editor configuration.
-    \Drupal::moduleHandler()->uninstall(array('editor', 'ckeditor'));
+    \Drupal::service('module_installer')->uninstall(array('editor', 'ckeditor'));
     $this->rebuildContainer();
-    \Drupal::moduleHandler()->install(array('editor'));
+    \Drupal::service('module_installer')->install(array('editor'));
+    /** @var \Drupal\contact\ContactFormInterface $contact_form */
+    $contact_form = ContactForm::load('feedback');
+    $recipients = $contact_form->getRecipients();
+    $this->assertEqual(['simpletest@example.com'], $recipients);
   }
 
 }

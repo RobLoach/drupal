@@ -35,6 +35,7 @@ use Drupal\menu_link_content\MenuLinkContentInterface;
  *   entity_keys = {
  *     "id" = "id",
  *     "label" = "title",
+ *     "langcode" = "langcode",
  *     "uuid" = "uuid",
  *     "bundle" = "bundle"
  *   },
@@ -359,7 +360,7 @@ class MenuLinkContent extends ContentEntityBase implements MenuLinkContentInterf
         'weight' => 0,
       ))
       ->setDisplayOptions('form', array(
-        'type' => 'integer',
+        'type' => 'number',
         'weight' => 20,
       ));
 
@@ -392,8 +393,15 @@ class MenuLinkContent extends ContentEntityBase implements MenuLinkContentInterf
       ));
 
     $fields['langcode'] = BaseFieldDefinition::create('language')
-      ->setLabel(t('Language code'))
-      ->setDescription(t('The node language code.'));
+      ->setLabel(t('Language'))
+      ->setDescription(t('The menu link language code.'))
+      ->setDisplayOptions('view', array(
+        'type' => 'hidden',
+      ))
+      ->setDisplayOptions('form', array(
+        'type' => 'language_select',
+        'weight' => 2,
+      ));
 
     $fields['parent'] = BaseFieldDefinition::create('string')
       ->setLabel(t('Parent plugin ID'))

@@ -6,7 +6,6 @@ langcode: en
 region: secondary_menu
 plugin: 'system_menu_block:account'
 settings:
-  visibility: { }
   id: 'system_menu_block:account'
   label: 'User account menu'
   provider: system
@@ -17,9 +16,10 @@ settings:
   level: 1
   depth: 1
 dependencies:
-  entity:
+  config:
     - system.menu.account
   module:
     - system
   theme:
     - bartik
+visibility: { }

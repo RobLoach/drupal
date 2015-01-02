@@ -32,22 +32,12 @@ use Drupal\user\UserInterface;
  *   entity_keys = {
  *     "id" = "fid",
  *     "label" = "filename",
+ *     "langcode" = "langcode",
  *     "uuid" = "uuid"
  *   }
  * )
  */
 class File extends ContentEntityBase implements FileInterface {
-
-  /**
-   * The plain data values of the contained properties.
-   *
-   * Define default values.
-   *
-   * @var array
-   */
-  protected $values = array(
-    'langcode' => array(LanguageInterface::LANGCODE_DEFAULT => array(0 => array('value' => LanguageInterface::LANGCODE_NOT_SPECIFIED))),
-  );
 
   /**
    * {@inheritdoc}
@@ -260,7 +250,8 @@ class File extends ContentEntityBase implements FileInterface {
     $fields['uri'] = BaseFieldDefinition::create('uri')
       ->setLabel(t('URI'))
       ->setDescription(t('The URI to access the file (either local or remote).'))
-      ->setSetting('max_length', 255);
+      ->setSetting('max_length', 255)
+      ->setSetting('case_sensitive', TRUE);
 
     $fields['filemime'] = BaseFieldDefinition::create('string')
       ->setLabel(t('File MIME type'))

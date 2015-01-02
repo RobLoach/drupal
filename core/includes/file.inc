@@ -5,6 +5,7 @@
  * API for handling file uploads and server file management.
  */
 
+use Drupal\Component\Utility\Unicode;
 use Drupal\Component\Utility\UrlHelper;
 use Drupal\Component\PhpStorage\FileStorage;
 use Drupal\Component\Utility\Bytes;
@@ -12,6 +13,7 @@ use Drupal\Component\Utility\String;
 use Drupal\Core\Site\Settings;
 use Drupal\Core\StreamWrapper\PublicStream;
 use Drupal\Core\StreamWrapper\StreamWrapperInterface;
+use Drupal\Core\StreamWrapper\PrivateStream;
 
 /**
  * Default mode for new directories. See drupal_chmod().
@@ -100,8 +102,6 @@ const FILE_STATUS_PERMANENT = 1;
  *   wrapper registry is returned. Otherwise only the stream wrappers whose
  *   'type' bitmask has an on bit for each bit specified in $filter are
  *   returned.
- *
- * @see hook_stream_wrappers_alter()
  *
  * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
  *   Use \Drupal::service('stream_wrapper_manager')->getWrappers().
@@ -316,13 +316,25 @@ function file_create_url($uri) {
     //   HTTP and to https://example.com/bar.jpg when viewing a HTTPS page)
     // Both types of relative URIs are characterized by a leading slash, hence
     // we can use a single check.
-    if (drupal_substr($uri, 0, 1) == '/') {
+    if (Unicode::substr($uri, 0, 1) == '/') {
       return $uri;
     }
     else {
       // If this is not a properly formatted stream, then it is a shipped file.
       // Therefore, return the urlencoded URI with the base URL prepended.
-      return $GLOBALS['base_url'] . '/' . UrlHelper::encodePath($uri);
+      $options = UrlHelper::parse($uri);
+      $path = $GLOBALS['base_url'] . '/' . UrlHelper::encodePath($options['path']);
+      // Append the query.
+      if ($options['query']) {
+        $path .= '?' . UrlHelper::buildQuery($options['query']);
+      }
+
+      // Append fragment.
+      if ($options['fragment']) {
+        $path .= '#' . $options['fragment'];
+      }
+
+      return $path;
     }
   }
   elseif ($scheme == 'http' || $scheme == 'https' || $scheme == 'data') {
@@ -423,7 +435,7 @@ function file_prepare_directory(&$directory, $options = FILE_MODIFY_PERMISSIONS)
  */
 function file_ensure_htaccess() {
   file_save_htaccess('public://', FALSE);
-  $private_path = \Drupal::config('system.file')->get('path.private');
+  $private_path = PrivateStream::basePath();
   if (!empty($private_path)) {
     file_save_htaccess('private://', TRUE);
   }
@@ -605,7 +617,7 @@ function file_unmanaged_copy($source, $destination = NULL, $replace = FILE_EXIST
     // If the copy failed and realpaths exist, retry the operation using them
     // instead.
     if ($real_source === FALSE || $real_destination === FALSE || !@copy($real_source, $real_destination)) {
-      $logger->error('file', 'The specified file %file could not be copied to %destination.', array('%file' => $source, '%destination' => $destination));
+      $logger->error('The specified file %file could not be copied to %destination.', array('%file' => $source, '%destination' => $destination));
       return FALSE;
     }
   }

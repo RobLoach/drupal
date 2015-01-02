@@ -61,7 +61,7 @@ class SessionTest extends WebTestBase {
       'name' => $user->getUsername(),
       'pass' => $user->pass_raw
     );
-    $this->drupalPostForm('user', $edit, t('Log in'));
+    $this->drupalPostForm('user/login', $edit, t('Log in'));
     $this->drupalGet('user');
     $pass = $this->assertText($user->getUsername(), format_string('Found name: %name', array('%name' => $user->getUsername())), 'User login');
     $this->_logged_in = $pass;
@@ -144,7 +144,7 @@ class SessionTest extends WebTestBase {
     $this->assertSessionEmpty(TRUE);
 
     // The same behavior is expected when caching is enabled.
-    $config = \Drupal::config('system.performance');
+    $config = $this->config('system.performance');
     $config->set('cache.page.use_internal', 1);
     $config->set('cache.page.max_age', 300);
     $config->save();

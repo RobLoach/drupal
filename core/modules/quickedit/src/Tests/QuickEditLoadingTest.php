@@ -8,10 +8,10 @@
 namespace Drupal\quickedit\Tests;
 
 use Drupal\Component\Serialization\Json;
-use Drupal\simpletest\WebTestBase;
-use Drupal\quickedit\Ajax\MetadataCommand;
-use Drupal\Core\Ajax\AppendCommand;
 use Drupal\Component\Utility\Unicode;
+use Drupal\block_content\Entity\BlockContent;
+use Drupal\node\Entity\Node;
+use Drupal\simpletest\WebTestBase;
 
 /**
  * Tests loading of in-place editing functionality and lazy loading of its
@@ -134,7 +134,7 @@ class QuickEditLoadingTest extends WebTestBase {
     $this->assertRaw('data-quickedit-field-id="node/1/body/en/full"');
 
     // There should be only one revision so far.
-    $node = node_load(1);
+    $node = Node::load(1);
     $vids = \Drupal::entityManager()->getStorage('node')->revisionIds($node);
     $this->assertIdentical(1, count($vids), 'The node has only one revision.');
     $original_log = $node->revision_log->value;
@@ -228,7 +228,7 @@ class QuickEditLoadingTest extends WebTestBase {
       $this->assertText('Fine thanks.');
 
       // Ensure no new revision was created and the log message is unchanged.
-      $node = node_load(1);
+      $node = Node::load(1);
       $vids = \Drupal::entityManager()->getStorage('node')->revisionIds($node);
       $this->assertIdentical(1, count($vids), 'The node has only one revision.');
       $this->assertIdentical($original_log, $node->revision_log->value, 'The revision log message is unchanged.');
@@ -277,7 +277,7 @@ class QuickEditLoadingTest extends WebTestBase {
       $this->assertEqual($ajax_commands[0]['data'], ['entity_type' => 'node', 'entity_id' => 1], 'Updated entity type and ID returned');
 
       // Test that a revision was created with the correct log message.
-      $vids = \Drupal::entityManager()->getStorage('node')->revisionIds(node_load(1));
+      $vids = \Drupal::entityManager()->getStorage('node')->revisionIds(Node::load(1));
       $this->assertIdentical(2, count($vids), 'The node has two revisions.');
       $revision = node_revision_load($vids[0]);
       $this->assertIdentical($original_log, $revision->revision_log->value, 'The first revision log message is unchanged.');
@@ -294,7 +294,7 @@ class QuickEditLoadingTest extends WebTestBase {
     $this->drupalGet('node/1');
 
     // Ensure that the full page title is actually in-place editable
-    $node = entity_load('node', 1);
+    $node = Node::load(1);
     $elements = $this->xpath('//h1/span[@data-quickedit-field-id="node/1/title/en/full" and normalize-space(text())=:title]', array(':title' => $node->label()));
     $this->assertTrue(!empty($elements), 'Title with data-quickedit-field-id attribute found.');
 
@@ -378,7 +378,7 @@ class QuickEditLoadingTest extends WebTestBase {
    * editable.
    */
   public function testPseudoFields() {
-    \Drupal::moduleHandler()->install(array('quickedit_test'));
+    \Drupal::service('module_installer')->install(array('quickedit_test'));
 
     $this->drupalLogin($this->author_user);
     $this->drupalGet('node/1');
@@ -392,7 +392,7 @@ class QuickEditLoadingTest extends WebTestBase {
    * editable.
    */
   public function testDisplayOptions() {
-    $node = entity_load('node', '1');
+    $node = Node::load('1');
     $display_settings = array(
       'label' => 'inline',
     );
@@ -405,7 +405,7 @@ class QuickEditLoadingTest extends WebTestBase {
    * Tests that Quick Edit works with custom render pipelines.
    */
   public function testCustomPipeline() {
-    \Drupal::moduleHandler()->install(array('quickedit_test'));
+    \Drupal::service('module_installer')->install(array('quickedit_test'));
 
     $custom_render_url = 'quickedit/form/node/1/body/en/quickedit_test-custom-render-data';
     $this->drupalLogin($this->editor_user);
@@ -492,4 +492,23 @@ class QuickEditLoadingTest extends WebTestBase {
     }
   }
 
+  /**
+   * Tests that Quick Edit's data- attributes are present for content blocks.
+   */
+  public function testContentBlock() {
+    \Drupal::service('module_installer')->install(array('block_content'));
+
+    // Create and place a content_block block.
+    $block = BlockContent::create([
+      'info' => $this->randomMachineName(),
+      'type' => 'basic',
+      'langcode' => 'en',
+    ]);
+    $block->save();
+    $this->drupalPlaceBlock('block_content:' . $block->uuid());
+
+    // Check that the data- attribute is present.
+    $this->drupalGet('');
+    $this->assertRaw('data-quickedit-entity-id="block_content/1"');
+  }
 }

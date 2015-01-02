@@ -11,14 +11,14 @@ use Drupal\Core\Config\FileStorage;
 use Drupal\Core\Config\InstallStorage;
 use Drupal\Core\TypedData\Type\IntegerInterface;
 use Drupal\Core\TypedData\Type\StringInterface;
-use Drupal\simpletest\DrupalUnitTestBase;
+use Drupal\simpletest\KernelTestBase;
 
 /**
  * Tests schema for configuration objects.
  *
  * @group config
  */
-class ConfigSchemaTest extends DrupalUnitTestBase {
+class ConfigSchemaTest extends KernelTestBase {
 
   /**
    * Modules to enable.
@@ -273,7 +273,7 @@ class ConfigSchemaTest extends DrupalUnitTestBase {
 
     $property = $meta->get('page')->get('front');
     $this->assertTrue($property instanceof StringInterface, 'Got the right wrapper fo the page.front property.');
-    $this->assertEqual($property->getValue(), 'user', 'Got the right value for page.front data.');
+    $this->assertEqual($property->getValue(), 'user/login', 'Got the right value for page.front data.');
     $definition = $property->getDataDefinition();
     $this->assertTrue(empty($definition['translatable']), 'Got the right translatability setting for page.front data.');
 
@@ -281,13 +281,13 @@ class ConfigSchemaTest extends DrupalUnitTestBase {
     $list = $meta->get('page');
     $this->assertEqual(count($list), 3, 'Got a list with the right number of properties for site page data');
     $this->assertTrue(isset($list['front']) && isset($list['403']) && isset($list['404']), 'Got a list with the right properties for site page data.');
-    $this->assertEqual($list['front']->getValue(), 'user', 'Got the right value for page.front data from the list.');
+    $this->assertEqual($list['front']->getValue(), 'user/login', 'Got the right value for page.front data from the list.');
 
     // And test some ComplexDataInterface methods.
     $properties = $list->getProperties();
     $this->assertTrue(count($properties) == 3 && $properties['front'] == $list['front'], 'Got the right properties for site page.');
     $values = $list->toArray();
-    $this->assertTrue(count($values) == 3 && $values['front'] == 'user', 'Got the right property values for site page.');
+    $this->assertTrue(count($values) == 3 && $values['front'] == 'user/login', 'Got the right property values for site page.');
 
     // Now let's try something more complex, with nested objects.
     $wrapper = \Drupal::service('config.typed')->get('image.style.large');
@@ -356,16 +356,16 @@ class ConfigSchemaTest extends DrupalUnitTestBase {
     );
 
     // Save config which has a schema that enforces types.
-    \Drupal::config('config_schema_test.schema_data_types')
+    $this->config('config_schema_test.schema_data_types')
       ->setData($untyped_to_typed)
       ->save();
-    $this->assertIdentical(\Drupal::config('config_schema_test.schema_data_types')->get(), $typed_values);
+    $this->assertIdentical($this->config('config_schema_test.schema_data_types')->get(), $typed_values);
 
     // Save config which does not have a schema that enforces types.
-    \Drupal::config('config_schema_test.no_schema_data_types')
+    $this->config('config_schema_test.no_schema_data_types')
       ->setData($untyped_values)
       ->save();
-    $this->assertIdentical(\Drupal::config('config_schema_test.no_schema_data_types')->get(), $untyped_values);
+    $this->assertIdentical($this->config('config_schema_test.no_schema_data_types')->get(), $untyped_values);
 
     // Ensure that configuration objects with keys marked as ignored are not
     // changed when saved. The 'config_schema_test.ignore' will have been saved
@@ -373,7 +373,7 @@ class ConfigSchemaTest extends DrupalUnitTestBase {
     $extension_path = drupal_get_path('module', 'config_schema_test');
     $install_storage = new FileStorage($extension_path . '/' . InstallStorage::CONFIG_INSTALL_DIRECTORY);
     $original_data = $install_storage->read('config_schema_test.ignore');
-    $this->assertIdentical(\Drupal::config('config_schema_test.ignore')->get(), $original_data);
+    $this->assertIdentical($this->config('config_schema_test.ignore')->get(), $original_data);
   }
 
   /**

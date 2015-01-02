@@ -9,6 +9,7 @@ namespace Drupal\comment\Tests;
 
 use Drupal\comment\CommentManagerInterface;
 use Drupal\Component\Utility\String;
+use Drupal\node\Entity\Node;
 
 /**
  * Tests paging of comments and their settings.
@@ -20,7 +21,7 @@ class CommentPagerTest extends CommentTestBase {
    * Confirms comment paging works correctly with flat and threaded comments.
    */
   function testCommentPaging() {
-    $this->drupalLogin($this->admin_user);
+    $this->drupalLogin($this->adminUser);
 
     // Set comment variables.
     $this->setCommentForm(TRUE);
@@ -92,7 +93,7 @@ class CommentPagerTest extends CommentTestBase {
    * Tests comment ordering and threading.
    */
   function testCommentOrderingThreading() {
-    $this->drupalLogin($this->admin_user);
+    $this->drupalLogin($this->adminUser);
 
     // Set comment variables.
     $this->setCommentForm(TRUE);
@@ -191,7 +192,7 @@ class CommentPagerTest extends CommentTestBase {
    * Tests calculation of first page with new comment.
    */
   function testCommentNewPageIndicator() {
-    $this->drupalLogin($this->admin_user);
+    $this->drupalLogin($this->adminUser);
 
     // Set comment variables.
     $this->setCommentForm(TRUE);
@@ -240,7 +241,7 @@ class CommentPagerTest extends CommentTestBase {
       6 => 0, // Page of comment 0
     );
 
-    $node = node_load($node->id());
+    $node = Node::load($node->id());
     foreach ($expected_pages as $new_replies => $expected_page) {
       $returned_page = \Drupal::entityManager()->getStorage('comment')
         ->getNewCommentPageNumber($node->get('comment')->comment_count, $new_replies, $node);
@@ -259,7 +260,7 @@ class CommentPagerTest extends CommentTestBase {
     );
 
     \Drupal::entityManager()->getStorage('node')->resetCache(array($node->id()));
-    $node = node_load($node->id());
+    $node = Node::load($node->id());
     foreach ($expected_pages as $new_replies => $expected_page) {
       $returned_page = \Drupal::entityManager()->getStorage('comment')
         ->getNewCommentPageNumber($node->get('comment')->comment_count, $new_replies, $node);
@@ -300,10 +301,10 @@ class CommentPagerTest extends CommentTestBase {
     $this->drupalPostForm(NULL, array('fields[comment][settings_edit_form][settings][pager_id]' => 0), t('Save'));
     $this->assertNoText(t('Pager ID: @id', array('@id' => 0)), 'No summary for standard pager');
 
-    $this->drupalLogin($this->admin_user);
+    $this->drupalLogin($this->adminUser);
 
     // Add a new node with both comment fields open.
-    $node = $this->drupalCreateNode(array('type' => 'article', 'promote' => 1, 'uid' => $this->web_user->id()));
+    $node = $this->drupalCreateNode(array('type' => 'article', 'promote' => 1, 'uid' => $this->webUser->id()));
     // Set comment options.
     $comments = array();
     foreach (array('comment', 'comment_2') as $field_name) {

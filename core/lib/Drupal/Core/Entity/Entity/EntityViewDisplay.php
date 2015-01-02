@@ -9,6 +9,8 @@ namespace Drupal\Core\Entity\Entity;
 
 use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+use Drupal\Core\Entity\EntityDisplayPluginCollection;
+use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\FieldableEntityInterface;
 use Drupal\Core\Entity\EntityDisplayBase;
 
@@ -169,6 +171,16 @@ class EntityViewDisplay extends EntityDisplayBase implements EntityViewDisplayIn
   /**
    * {@inheritdoc}
    */
+  public function postSave(EntityStorageInterface $storage, $update = TRUE) {
+    // Reset the render cache for the target entity type.
+    if (\Drupal::entityManager()->hasHandler($this->targetEntityType, 'view_builder')) {
+      \Drupal::entityManager()->getViewBuilder($this->targetEntityType)->resetCache();
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function getRenderer($field_name) {
     if (isset($this->plugins[$field_name])) {
       return $this->plugins[$field_name];
@@ -252,4 +264,22 @@ class EntityViewDisplay extends EntityDisplayBase implements EntityViewDisplayIn
     return $build_list;
   }
 
+  /**
+   * {@inheritdoc}
+   */
+  public function getPluginCollections() {
+    $configurations = array();
+    foreach ($this->getComponents() as $field_name => $configuration) {
+      if (!empty($configuration['type']) && ($field_definition = $this->getFieldDefinition($field_name))) {
+        $configurations[$configuration['type']] = $configuration + array(
+          'field_definition' => $field_definition,
+          'view_mode' => $this->originalMode,
+        );
+      }
+    }
+
+    return array(
+      'formatters' => new EntityDisplayPluginCollection($this->pluginManager, $configurations)
+    );
+  }
 }

@@ -1,8 +1,16 @@
-base_field: uid
-base_table: users
-core: 8.x
-description: 'Find and manage people interacting with your site.'
+langcode: en
 status: true
+dependencies:
+  module:
+    - user
+id: user_admin_people
+label: People
+module: user
+description: 'Find and manage people interacting with your site.'
+tag: default
+base_table: users
+base_field: uid
+core: 8.x
 display:
   default:
     display_plugin: default
@@ -14,10 +22,8 @@ display:
         type: perm
         options:
           perm: 'administer users'
-        provider: user
       cache:
         type: none
-        provider: views
       query:
         type: views_query
         options:
@@ -26,7 +32,6 @@ display:
           replica: false
           query_comment: false
           query_tags: {  }
-        provider: views
       exposed_form:
         type: basic
         options:
@@ -37,7 +42,6 @@ display:
           expose_sort_order: true
           sort_asc_label: Asc
           sort_desc_label: Desc
-        provider: views
       pager:
         type: full
         options:
@@ -59,7 +63,6 @@ display:
             offset: false
             offset_label: Offset
           quantity: 9
-        provider: views
       style:
         type: table
         options:
@@ -133,10 +136,8 @@ display:
               responsive: ''
           default: created
           empty_table: true
-        provider: views
       row:
         type: fields
-        provider: views
       fields:
         user_bulk_form:
           id: user_bulk_form
@@ -187,7 +188,7 @@ display:
           empty_zero: false
           hide_alter_empty: true
           plugin_id: user_bulk_form
-          provider: user
+          entity_type: user
         name:
           id: name
           table: users_field_data
@@ -241,7 +242,8 @@ display:
           anonymous_text: ''
           format_username: true
           plugin_id: user_name
-          provider: user
+          entity_type: user
+          entity_field: name
         status:
           id: status
           table: users_field_data
@@ -295,11 +297,12 @@ display:
           type_custom_false: ''
           not: '0'
           plugin_id: boolean
-          provider: views
-        rid:
-          id: rid
-          table: users_roles
-          field: rid
+          entity_type: user
+          entity_field: status
+        roles_target_id:
+          id: roles_target_id
+          table: user__roles
+          field: roles_target_id
           relationship: none
           group_type: group
           admin_label: ''
@@ -347,7 +350,6 @@ display:
           type: ul
           separator: ', '
           plugin_id: user_roles
-          provider: user
         created:
           id: created
           table: users_field_data
@@ -400,7 +402,8 @@ display:
           custom_date_format: ''
           timezone: ''
           plugin_id: date
-          provider: views
+          entity_type: user
+          entity_field: created
         access:
           id: access
           table: users_field_data
@@ -453,7 +456,8 @@ display:
           custom_date_format: ''
           timezone: ''
           plugin_id: date
-          provider: views
+          entity_type: user
+          entity_field: access
         edit_node:
           id: edit_node
           table: users
@@ -504,7 +508,7 @@ display:
           hide_alter_empty: true
           text: Edit
           plugin_id: user_link_edit
-          provider: user
+          entity_type: user
         dropbutton:
           id: dropbutton
           table: views
@@ -558,7 +562,7 @@ display:
             user_bulk_form: '0'
             name: '0'
             status: '0'
-            rid: '0'
+            roles_target_id: '0'
             created: '0'
             access: '0'
           destination: true
@@ -613,6 +617,8 @@ display:
           hide_alter_empty: true
           link_to_user: false
           plugin_id: user_mail
+          entity_type: user
+          entity_field: mail
       filters:
         combine:
           id: combine
@@ -655,10 +661,10 @@ display:
             name: name
             mail: mail
           plugin_id: combine
-        rid:
-          id: rid
-          table: users_roles
-          field: rid
+        roles_target_id:
+          id: roles_target_id
+          table: user__roles
+          field: roles_target_id
           relationship: none
           group_type: group
           admin_label: ''
@@ -667,11 +673,11 @@ display:
           group: 1
           exposed: true
           expose:
-            operator_id: rid_op
+            operator_id: roles_target_id_op
             label: Role
             description: ''
             use_operator: false
-            operator: rid_op
+            operator: roles_target_id_op
             identifier: role
             required: false
             remember: false
@@ -695,10 +701,9 @@ display:
             group_items: {  }
           reduce_duplicates: false
           plugin_id: user_roles
-          provider: user
         permission:
           id: permission
-          table: users_roles
+          table: user__roles
           field: permission
           relationship: none
           group_type: group
@@ -736,7 +741,6 @@ display:
             group_items: {  }
           reduce_duplicates: false
           plugin_id: user_permissions
-          provider: user
         status:
           id: status
           table: users_field_data
@@ -783,7 +787,8 @@ display:
                 operator: '='
                 value: '0'
           plugin_id: boolean
-          provider: views
+          entity_type: user
+          entity_field: status
         uid_raw:
           id: uid_raw
           table: users
@@ -823,7 +828,7 @@ display:
             default_group_multiple: {  }
             group_items: {  }
           plugin_id: numeric
-          provider: views
+          entity_type: user
       sorts:
         created:
           id: created
@@ -838,7 +843,8 @@ display:
             label: ''
           granularity: second
           plugin_id: date
-          provider: views
+          entity_type: user
+          entity_field: created
       title: People
       empty:
         area_text_custom:
@@ -852,7 +858,6 @@ display:
           tokenize: false
           content: 'No people available.'
           plugin_id: text_custom
-          provider: views
       use_more: false
       use_more_always: false
       use_more_text: more
@@ -868,6 +873,8 @@ display:
         operator: AND
         groups:
           1: AND
+      field_langcode: '***LANGUAGE_language_content***'
+      field_langcode_add_to_query: null
   page_1:
     display_plugin: page
     id: page_1
@@ -891,11 +898,5 @@ display:
         weight: 0
       defaults:
         show_admin_links: false
-label: People
-module: user
-id: user_admin_people
-tag: default
-langcode: en
-dependencies:
-  module:
-    - user
+      field_langcode: '***LANGUAGE_language_content***'
+      field_langcode_add_to_query: null

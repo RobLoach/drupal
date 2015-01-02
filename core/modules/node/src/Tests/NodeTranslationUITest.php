@@ -23,7 +23,7 @@ class NodeTranslationUITest extends ContentTranslationUITest {
    *
    * @var array
    */
-  public static $modules = array('block', 'language', 'content_translation', 'node', 'datetime', 'field_ui');
+  public static $modules = array('block', 'language', 'content_translation', 'node', 'datetime', 'field_ui', 'help');
 
   /**
    * The profile to install as a basis for testing.
@@ -38,11 +38,11 @@ class NodeTranslationUITest extends ContentTranslationUITest {
     parent::setUp();
 
     // Ensure the help message is shown even with prefixed paths.
-    $this->drupalPlaceBlock('system_help_block', array('region' => 'content'));
+    $this->drupalPlaceBlock('help_block', array('region' => 'content'));
 
     // Display the language selector.
     $this->drupalLogin($this->administrator);
-    $edit = array('language_configuration[language_show]' => TRUE);
+    $edit = array('language_configuration[language_alterable]' => TRUE);
     $this->drupalPostForm('admin/structure/types/manage/article', $edit, t('Save content type'));
     $this->drupalLogin($this->translator);
   }
@@ -73,22 +73,6 @@ class NodeTranslationUITest extends ContentTranslationUITest {
    */
   protected function getNewEntityValues($langcode) {
     return array('title' => array(array('value' => $this->randomMachineName()))) + parent::getNewEntityValues($langcode);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  protected function createEntity($values, $langcode, $bundle_name = NULL) {
-    $this->drupalLogin($this->editor);
-    $edit = array(
-      'title[0][value]' => $values['title'][0]['value'],
-      "{$this->fieldName}[0][value]" => $values[$this->fieldName][0]['value'],
-      'langcode' => $langcode,
-    );
-    $this->drupalPostForm('node/add/article', $edit, t('Save and publish'));
-    $this->drupalLogin($this->translator);
-    $node = $this->drupalGetNodeByTitle($values['title']);
-    return $node->id();
   }
 
   /**
@@ -244,14 +228,14 @@ class NodeTranslationUITest extends ContentTranslationUITest {
     $node->save();
 
     // Test that the frontpage view displays the correct translations.
-    \Drupal::moduleHandler()->install(array('views'), TRUE);
+    \Drupal::service('module_installer')->install(array('views'), TRUE);
     $this->rebuildContainer();
     $this->doTestTranslations('node', $values);
 
     // Enable the translation language renderer.
     $view = \Drupal::entityManager()->getStorage('view')->load('frontpage');
     $display = &$view->getDisplay('default');
-    $display['display_options']['row']['options']['rendering_language'] = 'translation_language_renderer';
+    $display['display_options']['rendering_language'] = 'translation_language_renderer';
     $view->save();
 
     // Need to check from the beginning, including the base_path, in the url

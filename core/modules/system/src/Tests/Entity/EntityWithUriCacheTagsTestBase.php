@@ -8,6 +8,7 @@
 namespace Drupal\system\Tests\Entity;
 
 use Drupal\Core\Cache\Cache;
+use Drupal\field\Entity\FieldConfig;
 
 /**
  * Provides helper methods for Entity cache tags tests; for entities with URIs.
@@ -29,8 +30,8 @@ abstract class EntityWithUriCacheTagsTestBase extends EntityCacheTagsTestBase {
     $view_mode = $this->selectViewMode($entity_type);
 
     // Generate the standardized entity cache tags.
-    $cache_tag = $this->entity->getCacheTag();
-    $view_cache_tag = \Drupal::entityManager()->getViewBuilder($entity_type)->getCacheTag();
+    $cache_tag = $this->entity->getCacheTags();
+    $view_cache_tag = \Drupal::entityManager()->getViewBuilder($entity_type)->getCacheTags();
     $render_cache_tag = 'rendered';
 
 
@@ -43,7 +44,7 @@ abstract class EntityWithUriCacheTagsTestBase extends EntityCacheTagsTestBase {
     // Also verify the existence of an entity render cache entry, if this entity
     // type supports render caching.
     if (\Drupal::entityManager()->getDefinition($entity_type)->isRenderCacheable()) {
-      $cid = 'entity_view:' . $entity_type . ':' . $this->entity->id() . ':' . $view_mode . ':stark:r.anonymous:' . date_default_timezone_get();
+      $cid = 'entity_view:' . $entity_type . ':' . $this->entity->id() . ':' . $view_mode . ':classy:r.anonymous:' . date_default_timezone_get();
       $cache_entry = \Drupal::cache('render')->get($cid);
       $expected_cache_tags = Cache::mergeTags($cache_tag, $view_cache_tag, $this->getAdditionalCacheTagsForEntity($this->entity), array($render_cache_tag));
       $this->verifyRenderCache($cid, $expected_cache_tags);
@@ -98,7 +99,7 @@ abstract class EntityWithUriCacheTagsTestBase extends EntityCacheTagsTestBase {
       // is a cache miss.
       $this->pass("Test modification of entity's configurable field.", 'Debug');
       $field_name = $this->entity->getEntityTypeId() . '.' . $this->entity->bundle() . '.configurable_field';
-      $field = entity_load('field_config', $field_name);
+      $field = FieldConfig::load($field_name);
       $field->save();
       $this->verifyPageCache($entity_path, 'MISS');
 
@@ -110,7 +111,7 @@ abstract class EntityWithUriCacheTagsTestBase extends EntityCacheTagsTestBase {
     // Verify that after invalidating the entity's cache tag directly, there is
     // a cache miss.
     $this->pass("Test invalidation of entity's cache tag.", 'Debug');
-    Cache::invalidateTags($this->entity->getCacheTag());
+    Cache::invalidateTags($this->entity->getCacheTags());
     $this->verifyPageCache($entity_path, 'MISS');
 
     // Verify a cache hit.

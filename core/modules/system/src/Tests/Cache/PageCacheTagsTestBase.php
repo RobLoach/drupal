@@ -29,7 +29,7 @@ abstract class PageCacheTagsTestBase extends WebTestBase {
     parent::setUp();
 
     // Enable page caching.
-    $config = \Drupal::config('system.performance');
+    $config = $this->config('system.performance');
     $config->set('cache.page.use_internal', 1);
     $config->set('cache.page.max_age', 3600);
     $config->save();
@@ -54,7 +54,7 @@ abstract class PageCacheTagsTestBase extends WebTestBase {
 
     if ($hit_or_miss === 'HIT' && is_array($tags)) {
       $cid_parts = array(_url($path, array('absolute' => TRUE)), 'html');
-      $cid = sha1(implode(':', $cid_parts));
+      $cid = implode(':', $cid_parts);
       $cache_entry = \Drupal::cache('render')->get($cid);
       sort($cache_entry->tags);
       $tags = array_unique($tags);

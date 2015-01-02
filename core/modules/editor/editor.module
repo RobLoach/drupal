@@ -215,7 +215,7 @@ function editor_form_filter_admin_format_submit($form, FormStateInterface $form_
   // Delete the existing editor if disabling or switching between editors.
   $format_id = $form_state->getFormObject()->getEntity()->id();
   $original_editor = editor_load($format_id);
-  if ($original_editor && $original_editor->getEditor() != $form_state->getValue('editor')) {
+  if ($original_editor && $original_editor->getEditor() != $form_state->getValue(array('editor', 'editor'))) {
     $original_editor->delete();
   }
 
@@ -441,7 +441,7 @@ function _editor_delete_file_usage(array $uuids, EntityInterface $entity, $count
 }
 
 /**
- * Finds all files referenced (data-editor-file-uuid) by formatted text fields.
+ * Finds all files referenced (data-entity-uuid) by formatted text fields.
  *
  * @param EntityInterface $entity
  *   An entity whose fields to analyze.
@@ -482,7 +482,7 @@ function _editor_get_formatted_text_fields(FieldableEntityInterface $entity) {
 }
 
 /**
- * Parse an HTML snippet for any data-editor-file-uuid attributes.
+ * Parse an HTML snippet for any linked file with data-entity-uuid attributes.
  *
  * @param string $text
  *   The partial (X)HTML snippet to load. Invalid markup will be corrected on
@@ -495,8 +495,8 @@ function _editor_parse_file_uuids($text) {
   $dom = Html::load($text);
   $xpath = new \DOMXPath($dom);
   $uuids = array();
-  foreach ($xpath->query('//*[@data-editor-file-uuid]') as $node) {
-    $uuids[] = $node->getAttribute('data-editor-file-uuid');
+  foreach ($xpath->query('//*[@data-entity-type="file" and @data-entity-uuid]') as $node) {
+    $uuids[] = $node->getAttribute('data-entity-uuid');
   }
   return $uuids;
 }

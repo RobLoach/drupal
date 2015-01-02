@@ -14,6 +14,8 @@ use Drupal\user\Entity\Role;
 
 /**
  * Tests the Item entity's cache tags.
+ *
+ * @group aggregator
  */
 class ItemCacheTagsTest extends EntityCacheTagsTestBase {
 
@@ -21,13 +23,6 @@ class ItemCacheTagsTest extends EntityCacheTagsTestBase {
    * {@inheritdoc}
    */
   public static $modules = array('aggregator');
-
-  /**
-   * {@inheritdoc}
-   */
-  public static function getInfo() {
-    return parent::generateStandardizedInfo('Aggregator feed item', 'Aggregator');
-  }
 
   /**
    * {@inheritdoc}
@@ -72,7 +67,7 @@ class ItemCacheTagsTest extends EntityCacheTagsTestBase {
    */
   public function testEntityCreation() {
     // Create a cache entry that is tagged with a feed cache tag.
-    \Drupal::cache('render')->set('foo', 'bar', \Drupal\Core\Cache\CacheBackendInterface::CACHE_PERMANENT, $this->entity->getCacheTag());
+    \Drupal::cache('render')->set('foo', 'bar', \Drupal\Core\Cache\CacheBackendInterface::CACHE_PERMANENT, $this->entity->getCacheTags());
 
     // Verify a cache hit.
     $this->verifyRenderCache('foo', array('aggregator_feed:1'));

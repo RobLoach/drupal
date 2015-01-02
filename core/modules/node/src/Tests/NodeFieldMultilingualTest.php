@@ -46,7 +46,7 @@ class NodeFieldMultilingualTest extends WebTestBase {
 
     // Set "Basic page" content type to use multilingual support.
     $edit = array(
-      'language_configuration[language_show]' => TRUE,
+      'language_configuration[language_alterable]' => TRUE,
     );
     $this->drupalPostForm('admin/structure/types/manage/page', $edit, t('Save content type'));
     $this->assertRaw(t('The content type %type has been updated.', array('%type' => 'Basic page')), 'Basic page content type has been updated.');
@@ -84,7 +84,7 @@ class NodeFieldMultilingualTest extends WebTestBase {
     $this->drupalGet("node/{$node->id()}/edit");
     $edit = array(
       $title_key => $this->randomMachineName(8),
-      'langcode' => $langcode,
+      'langcode[0][value]' => $langcode,
     );
     $this->drupalPostForm(NULL, $edit, t('Save'));
     $node = $this->drupalGetNodeByTitle($edit[$title_key], TRUE);

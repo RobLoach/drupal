@@ -14,7 +14,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Route;
 
 /**
- * @coversDefaultClass \Drupal\Core\Routing\Router
+ * @coversDefaultClass \Drupal\Core\Routing\AccessAwareRouter
  * @group Routing
  */
 class AccessAwareRouterTest extends UnitTestCase {
@@ -100,7 +100,7 @@ class AccessAwareRouterTest extends UnitTestCase {
   /**
    * Ensure that methods are passed to the wrapped router.
    *
-   * @covers ::__call
+   * @covers \Drupal\Core\Routing\AccessAwareRouter::__call
    */
   public function testCall() {
     $mock_router = $this->getMock('Symfony\Component\Routing\RouterInterface');

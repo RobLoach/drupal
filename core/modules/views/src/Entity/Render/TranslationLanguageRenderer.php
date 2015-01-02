@@ -26,14 +26,19 @@ class TranslationLanguageRenderer extends DefaultLanguageRenderer {
    * {@inheritdoc}
    */
   public function query(QueryPluginBase $query) {
+    // There is no point in getting the language, in case the site is not
+    // multilingual.
+    if (!$this->languageManager->isMultilingual()) {
+      return;
+    }
     // If the data table is defined, we use the translation language as render
     // language, otherwise we fall back to the default entity language, which is
     // stored in the revision table for revisionable entity types.
-    $entity_info = $this->view->rowPlugin->entityManager->getDefinition($this->entityType->id());
+    $langcode_key = $this->entityType->getKey('langcode');
     foreach (array('data_table', 'revision_table', 'base_table') as $key) {
-      if ($table = $entity_info->get($key)) {
+      if ($table = $this->entityType->get($key)) {
         $table_alias = $query->ensureTable($table);
-        $this->langcodeAlias = $query->addField($table_alias, 'langcode');
+        $this->langcodeAlias = $query->addField($table_alias, $langcode_key);
         break;
       }
     }
@@ -67,7 +72,7 @@ class TranslationLanguageRenderer extends DefaultLanguageRenderer {
    * {@inheritdoc}
    */
   protected function getLangcode(ResultRow $row) {
-    return $row->{$this->langcodeAlias};
+    return isset($row->{$this->langcodeAlias}) ? $row->{$this->langcodeAlias} : $this->languageManager->getDefaultLanguage()->getId();
   }
 
 }

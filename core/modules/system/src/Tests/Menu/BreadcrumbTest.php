@@ -41,9 +41,8 @@ class BreadcrumbTest extends MenuTestBase {
     // presence on the page, so we need to ensure that the Tools block will be
     // displayed in the admin theme.
     $this->drupalPlaceBlock('system_menu_block:tools', array(
-      'machine' => 'system_menu_tools',
       'region' => 'content',
-      'theme' => \Drupal::config('system.theme')->get('admin'),
+      'theme' => $this->config('system.theme')->get('admin'),
     ));
   }
 
@@ -115,7 +114,7 @@ class BreadcrumbTest extends MenuTestBase {
     // Verify Filter text format administration breadcrumbs.
     $filter_formats = filter_formats();
     $format = reset($filter_formats);
-    $format_id = $format->format;
+    $format_id = $format->id();
     $trail = $config + array(
       'admin/config/content' => t('Content authoring'),
     );
@@ -272,7 +271,7 @@ class BreadcrumbTest extends MenuTestBase {
         $link_path => $link->getTitle(),
       );
       $this->assertBreadcrumb($link_path, $trail, $term->getName(), $tree);
-      $this->assertRaw(String::checkPlain($parent->getTitle()), 'Tagged node found.');
+      $this->assertEscaped($parent->getTitle(), 'Tagged node found.');
 
       // Additionally make sure that this link appears only once; i.e., the
       // untranslated menu links automatically generated from menu router items
@@ -366,7 +365,7 @@ class BreadcrumbTest extends MenuTestBase {
     // Ensure that the breadcrumb is safe against XSS.
     $this->drupalGet('menu-test/breadcrumb1/breadcrumb2/breadcrumb3');
     $this->assertRaw('<script>alert(12);</script>');
-    $this->assertRaw(String::checkPlain('<script>alert(123);</script>'));
+    $this->assertEscaped('<script>alert(123);</script>');
   }
 
 }

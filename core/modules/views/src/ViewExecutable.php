@@ -7,6 +7,7 @@
 
 namespace Drupal\views;
 
+use Drupal\Component\Utility\String;
 use Drupal\Core\DependencyInjection\DependencySerializationTrait;
 use Drupal\Core\Form\FormState;
 use Drupal\Core\Session\AccountInterface;
@@ -87,21 +88,21 @@ class ViewExecutable {
    *
    * @var int
    */
-  public $current_page = NULL;
+  protected $current_page = NULL;
 
   /**
    * The number of items per page.
    *
    * @var int
    */
-  public $items_per_page = NULL;
+  protected $items_per_page = NULL;
 
   /**
    * The pager offset.
    *
    * @var int
    */
-  public $offset = NULL;
+  protected $offset = NULL;
 
   /**
    * The total number of rows returned from the query.
@@ -124,6 +125,13 @@ class ViewExecutable {
    */
   public $attachment_after = array();
 
+  /**
+   * Feed icons attached to the view.
+   *
+   * @var array
+   */
+  public $feedIcons = array();
+
   // Exposed widget input
 
   /**
@@ -138,7 +146,7 @@ class ViewExecutable {
    *
    * @var array
    */
-  public $exposed_input = array();
+  protected $exposed_input = array();
 
   /**
    * Exposed widget input directly from the $form_state->getValues().
@@ -150,14 +158,14 @@ class ViewExecutable {
   /**
    * Used to store views that were previously running if we recurse.
    *
-   * @var array
+   * @var \Drupal\views\ViewExecutable[]
    */
   public $old_view = array();
 
   /**
    * To avoid recursion in views embedded into areas.
    *
-   * @var array
+   * @var \Drupal\views\ViewExecutable[]
    */
   public $parent_views = array();
 
@@ -202,7 +210,7 @@ class ViewExecutable {
    * An array containing Drupal\views\Plugin\views\display\DisplayPluginBase
    * objects.
    *
-   * @var \Drupal\views\DisplayBag
+   * @var \Drupal\views\DisplayPluginCollection
    */
   public $displayHandlers;
 
@@ -253,67 +261,49 @@ class ViewExecutable {
   /**
    * Stores the field handlers which are initialized on this view.
    *
-   * An array containing Drupal\views\Plugin\views\field\FieldPluginBase
-   * objects.
-   *
-   * @var array
+   * @var \Drupal\views\Plugin\views\field\FieldPluginBase[]
    */
   public $field;
 
   /**
    * Stores the argument handlers which are initialized on this view.
    *
-   * An array containing Drupal\views\Plugin\views\argument\ArgumentPluginBase
-   * objects.
-   *
-   * @var array
+   * @var \Drupal\views\Plugin\views\argument\ArgumentPluginBase[]
    */
   public $argument;
 
   /**
    * Stores the sort handlers which are initialized on this view.
    *
-   * An array containing Drupal\views\Plugin\views\sort\SortPluginBase objects.
-   *
-   * @var array
+   * @var \Drupal\views\Plugin\views\sort\SortPluginBase[]
    */
   public $sort;
 
   /**
    * Stores the filter handlers which are initialized on this view.
    *
-   * An array containing Drupal\views\Plugin\views\filter\FilterPluginBase
-   * objects.
-   *
-   * @var array
+   * @var \Drupal\views\Plugin\views\filter\FilterPluginBase[]
    */
   public $filter;
 
   /**
    * Stores the relationship handlers which are initialized on this view.
    *
-   * An array containing Drupal\views\Plugin\views\relationship\RelationshipPluginBase
-   * objects.
-   *
-   * @var array
+   * @var \Drupal\views\Plugin\views\relationship\RelationshipPluginBase[]
    */
   public $relationship;
 
   /**
    * Stores the area handlers for the header which are initialized on this view.
    *
-   * An array containing Drupal\views\Plugin\views\area\AreaPluginBase objects.
-   *
-   * @var array
+   * @var \Drupal\views\Plugin\views\area\AreaPluginBase[]
    */
   public $header;
 
   /**
    * Stores the area handlers for the footer which are initialized on this view.
    *
-   * An array containing Drupal\views\Plugin\views\area\AreaPluginBase objects.
-   *
-   * @var array
+   * @var \Drupal\views\Plugin\views\area\AreaPluginBase[]
    */
   public $footer;
 
@@ -322,7 +312,7 @@ class ViewExecutable {
    *
    * An array containing Drupal\views\Plugin\views\area\AreaPluginBase objects.
    *
-   * @var array
+   * @var \Drupal\views\Plugin\views\area\AreaPluginBase[]
    */
   public $empty;
 
@@ -398,20 +388,20 @@ class ViewExecutable {
   /**
    * A render array container to store render related information.
    *
-   * For example you can alter the array and attach some css/js via the
-   * #attached key. This is the required way to add custom css/js.
+   * For example you can alter the array and attach some asset library or JS
+   * settings via the #attached key. This is the required way to add custom
+   * CSS or JS.
    *
    * @var array
    *
    * @see drupal_process_attached
    */
-  public $element = array(
-    '#attached' => array(
-      'css' => array(),
-      'js' => array(),
-      'library' => array(),
-    ),
-  );
+  public $element = [
+    '#attached' => [
+      'library' => [],
+      'drupalSettings' => [],
+    ]
+  ];
 
   /**
    * The current user.
@@ -428,18 +418,28 @@ class ViewExecutable {
   protected $showAdminLinks;
 
   /**
+   * The views data.
+   *
+   * @var \Drupal\views\ViewsData
+   */
+  protected $viewsData;
+
+  /**
    * Constructs a new ViewExecutable object.
    *
    * @param \Drupal\views\ViewStorageInterface $storage
    *   The view config entity the actual information is stored on.
    * @param \Drupal\Core\Session\AccountInterface $user
    *   The current user.
+   * @param \Drupal\views\ViewsData $views_data
+   *   The views data.
    */
-  public function __construct(ViewStorageInterface $storage, AccountInterface $user) {
+  public function __construct(ViewStorageInterface $storage, AccountInterface $user, ViewsData $views_data) {
     // Reference the storage and the executable to each other.
     $this->storage = $storage;
     $this->storage->set('executable', $this);
     $this->user = $user;
+    $this->viewsData = $views_data;
 
     // Add the default css for a view.
     $this->element['#attached']['library'][] = 'views/views.module';
@@ -586,6 +586,9 @@ class ViewExecutable {
     // Fill our input either from \Drupal::request()->query or from something
     // previously set on the view.
     if (empty($this->exposed_input)) {
+      // Ensure that we can call the method at any point in time.
+      $this->initDisplay();
+
       $this->exposed_input = \Drupal::request()->query->all();
       // unset items that are definitely not our input:
       foreach (array('page', 'q') as $key) {
@@ -619,7 +622,7 @@ class ViewExecutable {
     }
 
     // Initialize the display cache array.
-    $this->displayHandlers = new DisplayBag($this, Views::pluginManager('display'));
+    $this->displayHandlers = new DisplayPluginCollection($this, Views::pluginManager('display'));
 
     $this->current_display = 'default';
     $this->display_handler = $this->displayHandlers->get('default');
@@ -893,7 +896,7 @@ class ViewExecutable {
    */
   protected function _initHandler($key, $info) {
     // Load the requested items from the display onto the object.
-    $this->$key = $this->display_handler->getHandlers($key);
+    $this->$key = &$this->display_handler->getHandlers($key);
 
     // This reference deals with difficult PHP indirection.
     $handlers = &$this->$key;
@@ -965,7 +968,7 @@ class ViewExecutable {
 
         // Add this argument's substitution
         $substitutions['%' . ($position + 1)] = $arg_title;
-        $substitutions['!' . ($position + 1)] = strip_tags(decode_entities($arg));
+        $substitutions['!' . ($position + 1)] = strip_tags(String::decodeEntities($arg));
 
         // Test to see if we should use this argument's title
         if (!empty($argument->options['title_enable']) && !empty($argument->options['title'])) {
@@ -1533,9 +1536,7 @@ class ViewExecutable {
     $this->is_attachment = TRUE;
     // Find out which other displays attach to the current one.
     foreach ($this->display_handler->getAttachedDisplays() as $id) {
-      // Create a clone for the attachments to manipulate. 'static' refers to the current class name.
-      $cloned_view = new static($this->storage, $this->user);
-      $cloned_view->setRequest($this->getRequest());
+      $cloned_view = Views::executableFactory()->get($this->storage);
       $this->displayHandlers->get($id)->attachTo($cloned_view, $this->current_display, $this->element);
     }
     $this->is_attachment = FALSE;
@@ -1907,6 +1908,7 @@ class ViewExecutable {
     $types = $this::getHandlerTypes();
     $this->setDisplay($display_id);
 
+    $data = $this->viewsData->get($table);
     $fields = $this->displayHandlers->get($display_id)->getOption($types[$type]['plural']);
 
     if (empty($id)) {
@@ -1922,13 +1924,16 @@ class ViewExecutable {
       'field' => $field,
     ) + $options;
 
+    if (isset($data['table']['entity type'])) {
+      $fields[$id]['entity_type'] = $data['table']['entity type'];
+    }
+    if (isset($data[$field]['entity field'])) {
+      $fields[$id]['entity_field'] = $data[$field]['entity field'];
+    }
+
     // Load the plugin ID if available.
-    $data = Views::viewsData()->get($table);
     if (isset($data[$field][$handler_type]['id'])) {
       $fields[$id]['plugin_id'] = $data[$field][$handler_type]['id'];
-      if ($definition = Views::pluginManager($handler_type)->getDefinition($fields[$id]['plugin_id'], FALSE)) {
-        $fields[$id]['provider'] = isset($definition['provider']) ? $definition['provider'] : 'views';
-      }
     }
 
     $this->displayHandlers->get($display_id)->setOption($types[$type]['plural'], $fields);

@@ -56,7 +56,7 @@ class PathLanguageTest extends PathTestBase {
       'settings[node][page][translatable]' => 1,
       'settings[node][page][fields][path]' => 1,
       'settings[node][page][fields][body]' => 1,
-      'settings[node][page][settings][language][language_show]' => 1,
+      'settings[node][page][settings][language][language_alterable]' => 1,
     );
     $this->drupalPostForm('admin/config/regional/content-language', $edit, t('Save configuration'));
 
@@ -69,6 +69,7 @@ class PathLanguageTest extends PathTestBase {
    * Test alias functionality through the admin interfaces.
    */
   function testAliasTranslation() {
+    $node_storage = $this->container->get('entity.manager')->getStorage('node');
     $english_node = $this->drupalCreateNode(array('type' => 'page', 'langcode' => 'en'));
     $english_alias = $this->randomMachineName();
 
@@ -101,7 +102,8 @@ class PathLanguageTest extends PathTestBase {
     $languages = $this->container->get('language_manager')->getLanguages();
 
     // Ensure the node was created.
-    $english_node = node_load($english_node->id(), TRUE);
+    $node_storage->resetCache(array($english_node->id()));
+    $english_node = $node_storage->load($english_node->id());
     $french_node = $english_node->getTranslation('fr');
     $this->assertTrue($english_node->hasTranslation('fr'), 'Node found in database.');
 

@@ -83,7 +83,9 @@ function hook_node_grants(\Drupal\Core\Session\AccountInterface $account, $op) {
   if ($account->hasPermission('access private content')) {
     $grants['example'] = array(1);
   }
-  $grants['example_author'] = array($account->id());
+  if ($account->id()) {
+    $grants['example_author'] = array($account->id());
+  }
   return $grants;
 }
 
@@ -175,14 +177,16 @@ function hook_node_access_records(\Drupal\node\NodeInterface $node) {
     // means there are many groups of just 1 user.
     // Note that an author can always view his or her nodes, even if they
     // have status unpublished.
-    $grants[] = array(
-      'realm' => 'example_author',
-      'gid' => $node->getOwnerId(),
-      'grant_view' => 1,
-      'grant_update' => 1,
-      'grant_delete' => 1,
-      'langcode' => 'ca'
-    );
+    if ($node->getOwnerId()) {
+      $grants[] = array(
+        'realm' => 'example_author',
+        'gid' => $node->getOwnerId(),
+        'grant_view' => 1,
+        'grant_update' => 1,
+        'grant_delete' => 1,
+        'langcode' => 'ca'
+      );
+    }
 
     return $grants;
   }
@@ -416,7 +420,7 @@ function hook_node_update_index(\Drupal\node\NodeInterface $node, $langcode) {
  * Note: Changes made to the $node object within your hook implementation will
  * have no effect.  The preferred method to change a node's content is to use
  * hook_node_presave() instead. If it is really necessary to change the node at
- * the validate stage, you can use form_set_value().
+ * the validate stage, you can use setValueForElement().
  *
  * @param \Drupal\node\NodeInterface $node
  *   The node being validated.
@@ -490,7 +494,7 @@ function hook_node_submit(\Drupal\node\NodeInterface $node, $form, \Drupal\Core\
  *   'recent', or 'comments'. The values should be arrays themselves, with the
  *   following keys available:
  *   - title: (required) The human readable name of the ranking mechanism.
- *   - join: (optional) The part of a query string to join to any additional
+ *   - join: (optional) An array with information to join any additional
  *     necessary table. This is not necessary if the table required is already
  *     joined to by the base query, such as for the {node} table. Other tables
  *     should use the full table name as an alias to avoid naming collisions.
@@ -514,7 +518,12 @@ function hook_ranking() {
         'title' => t('Average vote'),
         // Note that we use i.sid, the search index's search item id, rather than
         // n.nid.
-        'join' => 'LEFT JOIN {vote_node_data} vote_node_data ON vote_node_data.nid = i.sid',
+        'join' => array(
+          'type' => 'LEFT',
+          'table' => 'vote_node_data',
+          'alias' => 'vote_node_data',
+          'on' => 'vote_node_data.nid = i.sid',
+        ),
         // The highest possible score should be 1, and the lowest possible score,
         // always 0, should be 0.
         'score' => 'vote_node_data.average / CAST(%f AS DECIMAL)',

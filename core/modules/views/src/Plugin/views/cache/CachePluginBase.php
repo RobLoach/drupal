@@ -7,6 +7,7 @@
 
 namespace Drupal\views\Plugin\views\cache;
 
+use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Cache\Cache;
 use Drupal\views\Plugin\views\PluginBase;
 use Drupal\Core\Database\Query\Select;
@@ -135,15 +136,15 @@ abstract class CachePluginBase extends PluginBase {
         break;
       case 'results':
         $data = array(
-          'result' => $this->view->result,
+          'result' => $this->prepareViewResult($this->view->result),
           'total_rows' => isset($this->view->total_rows) ? $this->view->total_rows : 0,
           'current_page' => $this->view->getCurrentPage(),
         );
         \Drupal::cache($this->resultsBin)->set($this->generateResultsKey(), $data, $this->cacheSetExpire($type), $this->getCacheTags());
         break;
       case 'output':
-        $this->gatherHeaders($this->view->display_handler->output);
-        $this->storage['output'] = drupal_render($this->view->display_handler->output, TRUE);
+        $this->storage['output'] = drupal_render($this->view->display_handler->output);
+        $this->gatherRenderMetadata($this->view->display_handler->output);
         \Drupal::cache($this->outputBin)->set($this->generateOutputKey(), $this->storage, $this->cacheSetExpire($type), $this->getCacheTags());
         break;
     }
@@ -166,6 +167,8 @@ abstract class CachePluginBase extends PluginBase {
         if ($cache = \Drupal::cache($this->resultsBin)->get($this->generateResultsKey())) {
           if (!$cutoff || $cache->created > $cutoff) {
             $this->view->result = $cache->data['result'];
+            // Load entities for each result.
+            $this->view->query->loadEntities($this->view->result);
             $this->view->total_rows = $cache->data['total_rows'];
             $this->view->setCurrentPage($cache->data['current_page']);
             $this->view->execute_time = 0;
@@ -178,9 +181,13 @@ abstract class CachePluginBase extends PluginBase {
           if (!$cutoff || $cache->created > $cutoff) {
             $this->storage = $cache->data;
 
-            $this->restoreHeaders();
+            $this->restoreRenderMetadata();
             $this->view->display_handler->output = array(
               '#attached' => &$this->view->element['#attached'],
+              '#cache' => [
+                'tags' => &$this->view->element['#cache']['tags'],
+              ],
+              '#post_render_cache' => &$this->view->element['#post_render_cache'],
               '#markup' => $cache->data['output'],
             );
 
@@ -226,60 +233,28 @@ abstract class CachePluginBase extends PluginBase {
 
   /**
    * Start caching the html head.
-   *
-   * This takes a snapshot of the current system state so that we don't
-   * duplicate it. Later on, when gatherHeaders() is run, this information
-   * will be removed so that we don't hold onto it.
-   *
-   * @see _drupal_add_html_head()
    */
-  public function cacheStart() {
-    $this->storage['head'] = _drupal_add_html_head();
-  }
+  public function cacheStart() { }
 
   /**
-   * Gather the JS/CSS from the render array and the html head from band data.
+   * Gather bubbleable render metadata from the render array.
    *
    * @param array $render_array
    *   The view render array to collect data from.
    */
-  protected function gatherHeaders(array $render_array = []) {
-    // Simple replacement for head
-    if (isset($this->storage['head'])) {
-      $this->storage['head'] = str_replace($this->storage['head'], '', _drupal_add_html_head());
-    }
-    else {
-      $this->storage['head'] = '';
-    }
-
-    $this->storage['css'] = $render_array['#attached']['css'];
-    $this->storage['js'] = $render_array['#attached']['js'];
+  protected function gatherRenderMetadata(array $render_array = []) {
+    $this->storage['attachments'] = $render_array['#attached'];
+    $this->storage['postRenderCache'] = $render_array['#post_render_cache'];
+    $this->storage['cacheTags'] = $render_array['#cache']['tags'];
   }
 
   /**
-   * Restore out of band data saved to cache. Copied from Panels.
+   * Restore bubbleable render metadata.
    */
-  public function restoreHeaders() {
-    if (!empty($this->storage['head'])) {
-      _drupal_add_html_head($this->storage['head']);
-    }
-    if (!empty($this->storage['css'])) {
-      foreach ($this->storage['css'] as $args) {
-        $this->view->element['#attached']['css'][] = $args;
-      }
-    }
-    if (!empty($this->storage['js'])) {
-      foreach ($this->storage['js'] as $key => $args) {
-        if ($key !== 'settings') {
-          $this->view->element['#attached']['js'][] = $args;
-        }
-        else {
-          foreach ($args as $setting) {
-            $this->view->element['#attached']['js']['setting'][] = $setting;
-          }
-        }
-      }
-    }
+  public function restoreRenderMetadata() {
+    $this->view->element['#attached'] = drupal_merge_attached($this->view->element['#attached'], $this->storage['attachments']);
+    $this->view->element['#cache']['tags'] = Cache::mergeTags(isset($this->view->element['#cache']['tags']) ? $this->view->element['#cache']['tags'] : [], $this->storage['cacheTags']);
+    $this->view->element['#post_render_cache'] = NestedArray::mergeDeep(isset($this->view->element['#post_render_cache']) ? $this->view->element['#post_render_cache'] : [], $this->storage['postRenderCache']);
   }
 
   /**
@@ -365,6 +340,29 @@ abstract class CachePluginBase extends PluginBase {
     }
 
     return $tags;
+  }
+
+  /**
+   * Prepares the view result before putting it into cache.
+   *
+   * @param \Drupal\views\ResultRow[] $result
+   *   The result containing loaded entities.
+   *
+   * @return \Drupal\views\ResultRow[] $result
+   *   The result without loaded entities.
+   */
+  protected function prepareViewResult(array $result) {
+    $return = [];
+
+    // Clone each row object and remove any loaded entities, to keep the
+    // original result rows intact.
+    foreach ($result as $key => $row) {
+      $clone = clone $row;
+      $clone->resetEntityData();
+      $return[$key] = $clone;
+    }
+
+    return $return;
   }
 
   /**

@@ -101,11 +101,9 @@ class FieldItemList extends ItemList implements FieldItemListInterface {
    * {@inheritdoc}
    */
   public function filterEmptyItems() {
-    if (isset($this->list)) {
-      $this->list = array_values(array_filter($this->list, function($item) {
-        return !$item->isEmpty();
-      }));
-    }
+    $this->filter(function ($item) {
+      return !$item->isEmpty();
+    });
   }
 
   /**
@@ -126,37 +124,12 @@ class FieldItemList extends ItemList implements FieldItemListInterface {
    * {@inheritdoc}
    */
   public function setValue($values, $notify = TRUE) {
-    if (!isset($values) || $values === array()) {
-      $this->list = $values;
+    // Support passing in only the value of the first item, either as a litteral
+    // (value of the first property) or as an array of properties.
+    if (isset($values) && (!is_array($values) || (!empty($values) && !is_numeric(current(array_keys($values)))))) {
+      $values = array(0 => $values);
     }
-    else {
-      // Support passing in only the value of the first item.
-      if (!is_array($values) || !is_numeric(current(array_keys($values)))) {
-        $values = array(0 => $values);
-      }
-
-      // Clear the values of properties for which no value has been passed.
-      if (isset($this->list)) {
-        $this->list = array_intersect_key($this->list, $values);
-      }
-
-      // Set the values.
-      foreach ($values as $delta => $value) {
-        if (!is_numeric($delta)) {
-          throw new \InvalidArgumentException('Unable to set a value with a non-numeric delta in a list.');
-        }
-        elseif (!isset($this->list[$delta])) {
-          $this->list[$delta] = $this->createItem($delta, $value);
-        }
-        else {
-          $this->list[$delta]->setValue($value, FALSE);
-        }
-      }
-    }
-    // Notify the parent of any changes.
-    if ($notify && isset($this->parent)) {
-      $this->parent->onChange($this->name);
-    }
+    parent::setValue($values, $notify);
   }
 
   /**
@@ -336,6 +309,9 @@ class FieldItemList extends ItemList implements FieldItemListInterface {
     // Extract the submitted value, and validate it.
     $widget = $this->defaultValueWidget($form_state);
     $widget->extractFormValues($this, $element, $form_state);
+    // Force a non-required field definition.
+    // @see self::defaultValueWidget().
+    $this->definition->required = FALSE;
     $violations = $this->validate();
 
     // Assign reported errors to the correct form element.

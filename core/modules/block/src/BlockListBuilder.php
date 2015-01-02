@@ -7,6 +7,7 @@
 
 namespace Drupal\block;
 
+use Drupal\Component\Utility\Html;
 use Drupal\Core\Block\BlockManagerInterface;
 use Drupal\Component\Serialization\Json;
 use Drupal\Component\Utility\String;
@@ -139,10 +140,7 @@ class BlockListBuilder extends ConfigEntityListBuilder implements FormInterface 
     $placement = FALSE;
     if ($this->request->query->has('block-placement')) {
       $placement = $this->request->query->get('block-placement');
-      $form['#attached']['js'][] = array(
-        'type' => 'setting',
-        'data' => array('blockPlacement' => $placement),
-      );
+      $form['#attached']['drupalSettings']['blockPlacement'] = $placement;
     }
     $entities = $this->load();
     $form['#theme'] = array('block_list');
@@ -248,7 +246,7 @@ class BlockListBuilder extends ConfigEntityListBuilder implements FormInterface 
               'class' => array('draggable'),
             ),
           );
-          if ($placement && $placement == drupal_html_class($entity_id)) {
+          if ($placement && $placement == Html::getClass($entity_id)) {
             $form['blocks'][$entity_id]['#attributes']['id'] = 'block-placed';
           }
 
@@ -334,9 +332,10 @@ class BlockListBuilder extends ConfigEntityListBuilder implements FormInterface 
     $form['place_blocks']['list']['#type'] = 'container';
     $form['place_blocks']['list']['#attributes']['class'][] = 'entity-meta';
 
-    // Sort the plugins first by category, then by label.
-    $plugins = $this->blockManager->getSortedDefinitions();
-    foreach ($plugins as $plugin_id => $plugin_definition) {
+    // Only add blocks which work without any available context.
+    $definitions = $this->blockManager->getDefinitionsForContexts();
+    $sorted_definitions = $this->blockManager->getSortedDefinitions($definitions);
+    foreach ($sorted_definitions as $plugin_id => $plugin_definition) {
       $category = String::checkPlain($plugin_definition['category']);
       $category_key = 'category-' . $category;
       if (!isset($form['place_blocks']['list'][$category_key])) {

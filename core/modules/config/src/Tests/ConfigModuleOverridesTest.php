@@ -7,14 +7,14 @@
 
 namespace Drupal\config\Tests;
 
-use Drupal\simpletest\DrupalUnitTestBase;
+use Drupal\simpletest\KernelTestBase;
 
 /**
  * Tests module overrides of configuration using event subscribers.
  *
  * @group config
  */
-class ConfigModuleOverridesTest extends DrupalUnitTestBase {
+class ConfigModuleOverridesTest extends KernelTestBase {
 
   public static $modules = array('system', 'config', 'config_override_test');
 
@@ -53,7 +53,7 @@ class ConfigModuleOverridesTest extends DrupalUnitTestBase {
     $this->assertTrue($config->isNew(), 'The configuration object config_override_test.new is new');
     $this->assertIdentical($config->get('module'), 'override');
     $config_factory->setOverrideState(FALSE);
-    $config = \Drupal::config('config_override_test.new');
+    $config = $this->config('config_override_test.new');
     $this->assertIdentical($config->get('module'), NULL);
 
     $config_factory->setOverrideState($old_state);

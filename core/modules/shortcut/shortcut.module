@@ -227,7 +227,7 @@ function shortcut_default_set($account = NULL) {
 function shortcut_set_title_exists($title) {
   $sets = ShortcutSet::loadMultiple();
   foreach ($sets as $set) {
-    if ($set->label == $title) {
+    if ($set->label() == $title) {
       return TRUE;
     }
   }
@@ -260,7 +260,7 @@ function shortcut_renderable_links($shortcut_set = NULL) {
       'title' => $shortcut->label(),
       'url' => Url::fromRoute($shortcut->getRouteName(), $shortcut->getRouteParameters()),
     );
-    $cache_tags = Cache::mergeTags($cache_tags, $shortcut->getCacheTag());
+    $cache_tags = Cache::mergeTags($cache_tags, $shortcut->getCacheTags());
   }
 
   if (!empty($links)) {
@@ -297,11 +297,8 @@ function shortcut_preprocess_page(&$variables) {
   // we do not want to display it on "access denied" or "page not found"
   // pages).
   if (shortcut_set_edit_access()->isAllowed() && !\Drupal::request()->attributes->has('exception')) {
-    $link = current_path();
-    if (!($url = \Drupal::pathValidator()->getUrlIfValid($link))) {
-      // Bail out early if we couldn't find a matching route.
-      return;
-    }
+    $link = Url::fromRouteMatch(\Drupal::routeMatch())->getInternalPath();
+    $route_match = \Drupal::routeMatch();
 
     $query = array(
       'link' => $link,
@@ -314,7 +311,7 @@ function shortcut_preprocess_page(&$variables) {
     // Check if $link is already a shortcut and set $link_mode accordingly.
     $shortcuts = \Drupal::entityManager()->getStorage('shortcut')->loadByProperties(array('shortcut_set' => $shortcut_set->id()));
     foreach ($shortcuts as $shortcut) {
-      if ($shortcut->getRouteName() == $url->getRouteName() && $shortcut->getRouteParameters() == $url->getRouteParameters()) {
+      if ($shortcut->getRouteName() == $route_match->getRouteName() && $shortcut->getRouteParameters() == $route_match->getParameters()->all()) {
         $shortcut_id = $shortcut->id();
         break;
       }
@@ -333,7 +330,7 @@ function shortcut_preprocess_page(&$variables) {
       $route_parameters = array('shortcut' => $shortcut_id);
     }
 
-    if (theme_get_setting('shortcut_module_link')) {
+    if (theme_get_setting('third_party_settings.shortcut.module_link')) {
       $variables['title_suffix']['add_or_remove_shortcut'] = array(
         '#attached' => array(
           'library' => array(
@@ -398,4 +395,17 @@ function shortcut_toolbar() {
   }
 
   return $items;
+}
+
+/**
+ * Implements hook_themes_installed().
+ */
+function shortcut_themes_installed($theme_list) {
+  if (in_array('seven', $theme_list)) {
+    // Theme settings are not configuration entities and cannot depend on modules
+    // so to set a module-specific setting, we need to set it with logic.
+    if (\Drupal::moduleHandler()->moduleExists('shortcut')) {
+      \Drupal::config('seven.settings')->set('third_party_settings.shortcut.module_link', TRUE)->save();
+    }
+  }
 }

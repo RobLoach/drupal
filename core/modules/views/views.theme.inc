@@ -28,6 +28,11 @@ function template_preprocess_views_view(&$variables) {
   $variables['css_name'] = Html::cleanCssIdentifier($id);
   $variables['id'] = $id;
   $variables['display_id'] = $view->current_display;
+  // Override the title to be empty by default. For example, if viewing a page
+  // view, 'title' will already be populated in $variables. This can still be
+  // overridden to use a title when needed. See views_ui_preprocess_views_view()
+  // for an example of this.
+  $variables['title'] = '';
 
   // Basic classes.
   $variables['attributes']['class'] = array();
@@ -130,7 +135,7 @@ function template_preprocess_views_view_fields(&$variables) {
         $object->separator = Xss::filterAdmin($variables['options']['separator']);
       }
 
-      $object->class = drupal_clean_css_identifier($id);
+      $object->class = Html::cleanCssIdentifier($id);
 
       $previous_inline = $object->inline;
       $object->inline_html = $object->handler->elementWrapperType(TRUE, TRUE);
@@ -301,10 +306,12 @@ function template_preprocess_views_view_summary(&$variables) {
   $active_urls = array(
     // Force system path.
     \Drupal::url('<current>', [], ['alias' => TRUE]),
-    _url(current_path(), array('alias' => TRUE)), // force system path
+    // Force system path.
+    Url::fromRouteMatch(\Drupal::routeMatch())->setOption('alias', TRUE)->toString(),
     // Could be an alias.
     \Drupal::url('<current>'),
-    _url(current_path()), // could be an alias
+    // Could be an alias.
+    Url::fromRouteMatch(\Drupal::routeMatch())->toString(),
   );
   $active_urls = array_combine($active_urls, $active_urls);
 
@@ -446,7 +453,7 @@ function template_preprocess_views_view_table(&$variables) {
   foreach ($columns as $field => $column) {
     // Create a second variable so we can easily find what fields we have and
     // what the CSS classes should be.
-    $variables['fields'][$field] = drupal_clean_css_identifier($field);
+    $variables['fields'][$field] = Html::cleanCssIdentifier($field);
     if ($active == $field) {
       $variables['fields'][$field] .= ' active';
     }
@@ -501,7 +508,7 @@ function template_preprocess_views_view_table(&$variables) {
       }
       // Add a CSS align class to each field if one was set.
       if (!empty($options['info'][$field]['align'])) {
-        $variables['header'][$field]['attributes']['class'][] = drupal_clean_css_identifier($options['info'][$field]['align']);
+        $variables['header'][$field]['attributes']['class'][] = Html::cleanCssIdentifier($options['info'][$field]['align']);
       }
       // Add a header label wrapper if one was selected.
       if ($variables['header'][$field]['content']) {
@@ -522,7 +529,7 @@ function template_preprocess_views_view_table(&$variables) {
 
     // Add a CSS align class to each field if one was set.
     if (!empty($options['info'][$field]['align'])) {
-      $variables['fields'][$field] .= ' ' . drupal_clean_css_identifier($options['info'][$field]['align']);
+      $variables['fields'][$field] .= ' ' . Html::cleanCssIdentifier($options['info'][$field]['align']);
     }
 
     // Render each field into its appropriate column.
@@ -828,7 +835,7 @@ function template_preprocess_views_view_list(&$variables) {
   // Fetch classes from handler options.
   if ($handler->options['class']) {
     $class = explode(' ', $handler->options['class']);
-    $class = array_map('drupal_clean_css_identifier', $class);
+    $class = array_map('\Drupal\Component\Utility\Html::cleanCssIdentifier', $class);
 
     // Initialize a new attribute class for $class.
     $variables['list']['attributes'] = new Attribute(array('class' => $class));
@@ -837,7 +844,7 @@ function template_preprocess_views_view_list(&$variables) {
   // Fetch wrapper classes from handler options.
   if ($handler->options['wrapper_class']) {
     $wrapper_class = explode(' ', $handler->options['wrapper_class']);
-    $variables['attributes']['class'] = array_map('drupal_clean_css_identifier', $wrapper_class);
+    $variables['attributes']['class'] = array_map('\Drupal\Component\Utility\Html::cleanCssIdentifier', $wrapper_class);
   }
 
   $variables['list']['type'] = $handler->options['type'];
@@ -865,7 +872,7 @@ function template_preprocess_views_view_rss(&$variables) {
   // The RSS 2.0 "spec" doesn't indicate HTML can be used in the description.
   // We strip all HTML tags, but need to prevent double encoding from properly
   // escaped source data (such as &amp becoming &amp;amp;).
-  $variables['description'] = String::checkPlain(decode_entities(strip_tags($style->getDescription())));
+  $variables['description'] = String::checkPlain(String::decodeEntities(strip_tags($style->getDescription())));
 
   if ($view->display_handler->getOption('sitename_title')) {
     $title = $config->get('name');
@@ -1027,87 +1034,31 @@ function template_preprocess_views_mini_pager(&$variables) {
   $element = $variables['element'];
   $parameters = $variables['parameters'];
 
-  // Fill in default link labels.
-  $tags += array(
-    1 => t('‹‹'),
-    3 => t('››'),
-  );
-
   // Current is the page we are currently paged to.
-  $pager_current = $pager_page_array[$element] + 1;
+  $variables['items']['current'] = $pager_page_array[$element] + 1;
 
-  $li_previous = array();
   if ($pager_total[$element] > 1 && $pager_page_array[$element] > 0) {
-    $li_previous = array(
-      '#type' => 'link',
-      '#title' => $tags[1],
-      '#url' => Url::fromRoute('<current>'),
-      '#options' => array(
-        'query' => pager_query_add_page($parameters, $element, $pager_page_array[$element] - 1),
-        'attributes' => array(
-          'title' => t('Go to previous page'),
-          'rel' => 'prev',
-        ),
-        // Below is ignored by default, supplied to support hook_link_alter
-        // implementations.
-        'pager_context' => array(
-          'link_type' => 'previous',
-          'element' => $element,
-          'interval' => -1,
-        ),
-      ),
+    $options = array(
+      'query' => pager_query_add_page($parameters, $element, $pager_page_array[$element] - 1),
     );
+    $variables['items']['previous']['href'] = \Drupal::url('<current>', [], $options);
+    if (isset($tags[1])) {
+      $variables['items']['previous']['text'] = $tags[1];
+    }
+    $variables['items']['previous']['attributes'] = new Attribute();
   }
 
   $li_next = array();
   if ($pager_page_array[$element] < ($pager_total[$element] - 1)) {
-    $li_next = array(
-      '#type' => 'link',
-      '#title' => $tags[3],
-      '#url' => Url::fromRoute('<current>'),
-      '#options' => array(
-        'query' => pager_query_add_page($parameters, $element, $pager_page_array[$element] + 1),
-        'attributes' => array(
-          'title' => t('Go to next page'),
-          'rel' => 'next',
-        ),
-        // Below is ignored by default, supplied to support hook_link_alter
-        // implementations.
-        'pager_context' => array(
-          'link_type' => 'next',
-          'element' => $element,
-          'interval' => 1,
-        ),
-      ),
+    $options = array(
+      'query' => pager_query_add_page($parameters, $element, $pager_page_array[$element] + 1),
     );
+    $variables['items']['next']['href'] = \Drupal::url('<current>', [], $options);
+    if (isset($tags[3])) {
+      $variables['items']['next']['text'] = $tags[3];
+    }
+    $variables['items']['next']['attributes'] = new Attribute();
   }
-
-  // Don't show the pager if there is neither a next page nor a previous page
-  // link, which means that we are on the first page and there is no next page
-  // available/wanted.
-  if (empty($li_next) && empty($li_previous)) {
-    return;
-  }
-
-  $items = array();
-  $items[] = array(
-    '#wrapper_attributes' => array('class' => array('pager-previous')),
-  ) + $li_previous;
-
-  $items[] = array(
-    '#wrapper_attributes' => array('class' => array('pager-current')),
-    '#markup' => t('Page @current', array('@current' => $pager_current)),
-  );
-
-  $items[] = array(
-    '#wrapper_attributes' => array('class' => array('pager-next')),
-  ) + $li_next;
-
-  $variables['items'] = array(
-    '#theme' => 'item_list__pager',
-    '#items' => $items,
-    '#attributes' => array('class' => array('pager')),
-  );
 }
 
 /**

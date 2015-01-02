@@ -17,11 +17,10 @@ use Drupal\simpletest\KernelTestBase;
  */
 class EntityFormDisplayTest extends KernelTestBase {
 
-  public static $modules = array('field_ui', 'field', 'entity_test', 'field_test', 'user', 'text');
+  public static $modules = array('field_ui', 'field', 'entity_test', 'field_test', 'user', 'text', 'entity_reference');
 
   protected function setUp() {
     parent::setUp();
-    $this->installConfig(array('field'));
   }
 
   /**
@@ -147,7 +146,7 @@ class EntityFormDisplayTest extends KernelTestBase {
     // Check that saving the display only writes data for fields whose display
     // is configurable.
     $display->save();
-    $config = \Drupal::config('core.entity_form_display.' . $display->id());
+    $config = $this->config('core.entity_form_display.' . $display->id());
     $data = $config->get();
     $this->assertFalse(isset($data['content']['test_no_display']));
     $this->assertFalse(isset($data['hidden']['test_no_display']));

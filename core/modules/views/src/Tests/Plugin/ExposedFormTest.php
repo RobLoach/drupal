@@ -7,6 +7,7 @@
 
 namespace Drupal\views\Tests\Plugin;
 
+use Drupal\Component\Utility\Html;
 use Drupal\views\Tests\ViewTestBase;
 use Drupal\views\ViewExecutable;
 use Drupal\views\Views;
@@ -100,6 +101,11 @@ class ExposedFormTest extends ViewTestBase {
     // Test the button is hidden after reset.
     $this->assertNoField('edit-reset');
 
+    // Test the reset works with type set.
+    $this->drupalGet('test_exposed_form_buttons', array('query' => array('type' => 'article', 'op' => 'Reset')));
+    $this->assertResponse(200);
+    $this->assertFieldById('edit-type', 'All', 'Article type filter has been reset.');
+
     // Rename the label of the reset button.
     $view = Views::getView('test_exposed_form_buttons');
     $view->setDisplay();
@@ -189,7 +195,7 @@ class ExposedFormTest extends ViewTestBase {
    *   The form ID.
    */
   protected function getExpectedExposedFormId(ViewExecutable $view) {
-    return drupal_clean_css_identifier('views-exposed-form-' . $view->storage->id() . '-' . $view->current_display);
+    return Html::cleanCssIdentifier('views-exposed-form-' . $view->storage->id() . '-' . $view->current_display);
   }
 
 }

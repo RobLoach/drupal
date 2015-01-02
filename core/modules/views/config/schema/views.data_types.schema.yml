@@ -24,9 +24,6 @@ views_display:
           label: 'Pager type'
         options:
           type: views.pager.[%parent.type]
-        provider:
-          type: string
-          label: 'Provider'
     exposed_form:
       type: mapping
       label: 'Exposed form'
@@ -37,9 +34,6 @@ views_display:
         options:
           label: 'Options'
           type: views.exposed_form.[%parent.type]
-        provider:
-          type: string
-          label: 'Provider'
     access:
       type: mapping
       label: 'Access'
@@ -49,9 +43,6 @@ views_display:
           label: 'Access type'
         options:
           type: views.access.[%parent.type]
-        provider:
-          type: string
-          label: 'Provider'
     cache:
       type: views.cache.[type]
     empty:
@@ -96,9 +87,6 @@ views_display:
           label: 'Type'
         options:
           type: views.style.[%parent.type]
-        provider:
-          type: string
-          label: 'Provider'
     row:
       type: mapping
       label: 'Row'
@@ -108,9 +96,6 @@ views_display:
           label: 'Row type'
         options:
           type: views.row.[%parent.type]
-        provider:
-          type: string
-          label: 'Provider'
     query:
       type: mapping
       label: 'Query'
@@ -120,9 +105,6 @@ views_display:
           label: 'Query type'
         options:
           type: views.query.[%parent.type]
-        provider:
-          type: string
-          label: 'Provider'
     defaults:
       type: mapping
       label: 'Defaults'
@@ -205,9 +187,12 @@ views_display:
         filter_groups:
           type: boolean
           label: 'Filter groups'
-        pager_options:
+        header:
           type: boolean
-          label: 'Pager options'
+          label: 'Header'
+        footer:
+          type: boolean
+          label: 'Footer'
     relationships:
       type: sequence
       label: 'Relationships'
@@ -243,9 +228,6 @@ views_display:
     link_url:
       type: string
       label: 'Link URL'
-    pager_options:
-      type: boolean
-      label: 'Pager options'
     header:
       type: sequence
       label: 'Header'
@@ -268,6 +250,9 @@ views_display:
     field_langcode_add_to_query:
       type: string
       label: 'Add the field language to the query'
+    rendering_language:
+      type: string
+      label: 'Entity language'
     cache_metadata:
       type: mapping
       label: 'Cache metadata'
@@ -278,6 +263,14 @@ views_display:
         contexts:
           type: sequence
           label: 'Cache contexts'
+    exposed_block:
+      type: boolean
+      label: 'Put the exposed form in a block'
+    display_extenders:
+      type: sequence
+      label: 'Display extenders'
+      sequence:
+       - type: views.display_extender.[%key]
 
 views_sort:
   type: views_handler
@@ -337,12 +330,15 @@ views_handler:
     admin_label:
       type: label
       label: 'A string to identify the handler instance in the admin UI.'
-    provider:
+    entity_type:
       type: string
-      label: 'Provider'
-    dependencies:
-      type: config_dependencies
-      label: 'Dependencies'
+      label: 'The entity type'
+    entity_field:
+      type: string
+      label: 'The corresponding entity field'
+    plugin_id:
+      type: string
+      label: 'The plugin ID'
 
 views_argument:
   type: views_handler
@@ -433,10 +429,6 @@ views_argument:
     plugin_id:
       type: string
       label: 'Plugin ID'
-    provider:
-      type: string
-      label: 'Provider'
-
 
 views_exposed_form:
   type: mapping
@@ -593,9 +585,6 @@ views_field:
     plugin_id:
       type: string
       label: 'Plugin ID'
-    provider:
-      type: string
-      label: 'Provider'
 
 views_pager:
   type: mapping
@@ -779,61 +768,38 @@ views_filter:
             - type: integer
               label: 'Default'
         group_items:
-          type: views.filter.group_items.[plugin_id]
+          type: sequence
           label: 'Group items'
+          sequence:
+            - type: views.filter.group_item.[%parent.%parent.%parent.plugin_id]
+              label: 'Group item'
     plugin_id:
       type: string
       label: 'Plugin ID'
-    provider:
-      type: string
-      label: 'Provider'
 
-views_filter_group_items:
-  type: sequence
-  sequence:
-    - type: mapping
-      label: 'Group item'
-      mapping:
-        title:
-          type: label
-          label: 'Label'
-        operator:
-          type: string
-          label: 'Operator'
-        value:
-          type: label
-          label: 'Value'
+views_filter_group_item:
+  type: mapping
+  label: 'Group item'
+  mapping:
+    title:
+      type: label
+      label: 'Label'
+    operator:
+      type: string
+      label: 'Operator'
+    value:
+      type: label
+      label: 'Value'
 
 views_relationship:
-  type: mapping
+  type: views_handler
   mapping:
-    id:
-      type: string
-      label: 'ID'
-    table:
-      type: string
-      label: 'Table'
-    field:
-      type: string
-      label: 'UID'
-    plugin_id:
-      type: string
-      label: 'Plugin ID'
-    relationship:
-      type: string
-      label: 'Relationship'
-    group_type:
-      type: string
-      label: 'Group type'
     admin_label:
       type: string
       label: 'Administrative title'
     required:
       type: boolean
       label: 'Require this relationship'
-    provider:
-      type: string
-      label: 'Provider'
 
 views_query:
   type: mapping
@@ -860,7 +826,7 @@ views_query:
 
 views_row:
   type: mapping
-  label: 'Row'
+  label: 'Row options'
   mapping:
     relationship:
       type: string
@@ -880,6 +846,7 @@ views_cache:
     type:
       type: string
       label: 'Cache type'
-    provider:
-      type: string
-      label: 'Provider'
+
+views_display_extender:
+  type: mapping
+  label: 'Display extender settings'

@@ -6,6 +6,7 @@
  */
 
 namespace Drupal\block_content\Tests;
+use Drupal\Component\Utility\Unicode;
 
 /**
  * Tests block fieldability.
@@ -55,7 +56,7 @@ class BlockContentFieldTest extends BlockContentTestBase {
 
     // Create a field with settings to validate.
     $this->fieldStorage = entity_create('field_storage_config', array(
-      'field_name' => drupal_strtolower($this->randomMachineName()),
+      'field_name' => Unicode::strtolower($this->randomMachineName()),
       'entity_type' => 'block_content',
       'type' => 'link',
       'cardinality' => 2,
@@ -90,10 +91,10 @@ class BlockContentFieldTest extends BlockContentTestBase {
     );
     $this->drupalPostForm(NULL, $edit, t('Save'));
     $block = entity_load('block_content', 1);
-    $url = 'admin/structure/block/add/block_content:' . $block->uuid() . '/' . \Drupal::config('system.theme')->get('default');
+    $url = 'admin/structure/block/add/block_content:' . $block->uuid() . '/' . $this->config('system.theme')->get('default');
     // Place the block.
     $instance = array(
-      'id' => drupal_strtolower($edit['info[0][value]']),
+      'id' => Unicode::strtolower($edit['info[0][value]']),
       'settings[label]' => $edit['info[0][value]'],
       'region' => 'sidebar_first',
     );

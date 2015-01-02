@@ -8,6 +8,7 @@
 namespace Drupal\views\Plugin\views\display;
 
 use Drupal\Component\Utility\String;
+use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Language\LanguageInterface;
@@ -56,19 +57,26 @@ abstract class DisplayPluginBase extends PluginBase {
    */
   var $view = NULL;
 
-  var $handlers = array();
+  /**
+   * An array of instantiated handlers used in this display.
+   *
+   * @var \Drupal\views\Plugin\views\ViewsHandlerInterface[]
+   */
+   public $handlers = [];
 
   /**
    * An array of instantiated plugins used in this display.
    *
-   * @var array
+   * @var \Drupal\views\Plugin\views\ViewsPluginInterface[]
    */
   protected $plugins = array();
 
   /**
    * Stores all available display extenders.
+   *
+   * @var \Drupal\views\Plugin\views\display_extender\DisplayExtenderPluginBase[]
    */
-  var $extender = array();
+  protected $extenders = [];
 
   /**
    * Overrides Drupal\views\Plugin\Plugin::$usesOptions.
@@ -150,20 +158,26 @@ abstract class DisplayPluginBase extends PluginBase {
 
   public function initDisplay(ViewExecutable $view, array &$display, array &$options = NULL) {
     $this->view = $view;
-    $this->setOptionDefaults($this->options, $this->defineOptions());
-    $this->display = &$display;
 
     // Load extenders as soon as possible.
-    $this->extender = array();
+    $display['display_options'] += ['display_extenders' => []];
+    $this->extenders = array();
     if ($extenders = Views::getEnabledDisplayExtenders()) {
       $manager = Views::pluginManager('display_extender');
+      $display_extender_options = $display['display_options']['display_extenders'];
       foreach ($extenders as $extender) {
+        /** @var \Drupal\views\Plugin\views\display_extender\DisplayExtenderPluginBase $plugin */
         if ($plugin = $manager->createInstance($extender)) {
-          $plugin->init($this->view, $this);
-          $this->extender[$extender] = $plugin;
+          $extender_options = isset($display_extender_options[$plugin->getPluginId()]) ? $display_extender_options[$plugin->getPluginId()] : [];
+          $plugin->init($this->view, $this, $extender_options);
+          $this->extenders[$extender] = $plugin;
         }
       }
     }
+
+
+    $this->setOptionDefaults($this->options, $this->defineOptions());
+    $this->display = &$display;
 
     // Track changes that the user should know about.
     $changed = FALSE;
@@ -231,7 +245,7 @@ abstract class DisplayPluginBase extends PluginBase {
       unset($this->default_display);
     }
 
-    foreach ($this->extender as $extender) {
+    foreach ($this->extenders as $extender) {
       $extender->destroy();
     }
   }
@@ -463,11 +477,9 @@ abstract class DisplayPluginBase extends PluginBase {
       'style' => array('style', 'row'),
       'row' => array('style', 'row'),
 
-      'pager' => array('pager', 'pager_options'),
-      'pager_options' => array('pager', 'pager_options'),
+      'pager' => array('pager'),
 
-      'exposed_form' => array('exposed_form', 'exposed_form_options'),
-      'exposed_form_options' => array('exposed_form', 'exposed_form_options'),
+      'exposed_form' => array('exposed_form'),
 
       // These guys are special
       'header' => array('header'),
@@ -487,7 +499,7 @@ abstract class DisplayPluginBase extends PluginBase {
       unset($sections['items_per_page']);
     }
 
-    foreach ($this->extender as $extender) {
+    foreach ($this->extenders as $extender) {
       $extender->defaultableSections($sections, $section);
     }
 
@@ -589,6 +601,9 @@ abstract class DisplayPluginBase extends PluginBase {
       'field_langcode_add_to_query' => array(
         'default' => TRUE,
       ),
+      'rendering_language' => array(
+        'default' => 'translation_language_renderer',
+      ),
 
       // These types are all plugins that can have individual settings
       // and therefore need special handling.
@@ -689,9 +704,6 @@ abstract class DisplayPluginBase extends PluginBase {
     );
 
     if (!$this->usesPager()) {
-      $options['defaults']['default']['use_pager'] = FALSE;
-      $options['defaults']['default']['items_per_page'] = FALSE;
-      $options['defaults']['default']['offset'] = FALSE;
       $options['defaults']['default']['pager'] = FALSE;
       $options['pager']['contains']['type']['default'] = 'some';
     }
@@ -700,7 +712,14 @@ abstract class DisplayPluginBase extends PluginBase {
       unset($options['defaults']);
     }
 
-    foreach ($this->extender as $extender) {
+    $options['display_extenders'] = ['default' => []];
+    // First allow display extenders to provide new options.
+    foreach ($this->extenders as $extender_id => $extender) {
+      $options['display_extenders']['contains'][$extender_id]['contains'] = $extender->defineOptions();
+    }
+
+    // Then allow display extenders to alter existing default values.
+    foreach ($this->extenders as $extender) {
       $extender->defineOptionsAlter($options);
     }
 
@@ -896,13 +915,15 @@ abstract class DisplayPluginBase extends PluginBase {
    *
    * @return \Drupal\views\Plugin\views\ViewsHandlerInterface[]
    */
-  public function getHandlers($type) {
+  public function &getHandlers($type) {
     if (!isset($this->handlers[$type])) {
       $this->handlers[$type] = array();
       $types = ViewExecutable::getHandlerTypes();
       $plural = $types[$type]['plural'];
 
-      foreach ($this->getOption($plural) as $id => $info) {
+      // Cast to an array so that if the display does not have any handlers of
+      // this type there is no PHP error.
+      foreach ((array) $this->getOption($plural) as $id => $info) {
         // If this is during form submission and there are temporary options
         // which can only appear if the view is in the edit cache, use those
         // options instead. This is used for AJAX multi-step stuff.
@@ -1054,7 +1075,7 @@ abstract class DisplayPluginBase extends PluginBase {
        // Use strip tags as there should never be HTML in the path.
        // However, we need to preserve special characters like " that
        // were removed by String::checkPlain().
-      $tokens["!$count"] = isset($this->view->args[$count - 1]) ? strip_tags(decode_entities($this->view->args[$count - 1])) : '';
+      $tokens["!$count"] = isset($this->view->args[$count - 1]) ? strip_tags(String::decodeEntities($this->view->args[$count - 1])) : '';
     }
 
     return $tokens;
@@ -1085,6 +1106,10 @@ abstract class DisplayPluginBase extends PluginBase {
       ),
       'pager' => array(
         'title' => $this->t('Pager'),
+        'column' => 'second',
+      ),
+      'language' => array(
+        'title' => $this->t('Language'),
         'column' => 'second',
       ),
       'exposed' => array(
@@ -1119,7 +1144,7 @@ abstract class DisplayPluginBase extends PluginBase {
       );
     }
 
-    $display_comment = String::checkPlain(drupal_substr($this->getOption('display_comment'), 0, 10));
+    $display_comment = String::checkPlain(Unicode::substr($this->getOption('display_comment'), 0, 10));
     $options['display_comment'] = array(
       'category' => 'other',
       'title' => $this->t('Administrative comment'),
@@ -1249,14 +1274,21 @@ abstract class DisplayPluginBase extends PluginBase {
       'desc' => $this->t('Allow to set some advanced settings for the query plugin'),
     );
 
-    $language_options = $this->listLanguages(LanguageInterface::STATE_ALL | LanguageInterface::STATE_SITE_DEFAULT | PluginBase::INCLUDE_NEGOTIATED);
-
-    $options['field_langcode'] = array(
-      'category' => 'other',
-      'title' => $this->t('Field Language'),
-      'value' => $language_options[$this->getOption('field_langcode')],
-      'desc' => $this->t('All fields that support translations will be displayed in the selected language.'),
-    );
+    if (\Drupal::languageManager()->isMultilingual() && $this->isBaseTableTranslatable()) {
+      $rendering_language_options = $this->buildRenderingLanguageOptions();
+      $options['rendering_language'] = array(
+        'category' => 'language',
+        'title' => $this->t('Entity Language'),
+        'value' => $rendering_language_options[$this->getOption('rendering_language')],
+      );
+      $language_options = $this->listLanguages(LanguageInterface::STATE_ALL | LanguageInterface::STATE_SITE_DEFAULT | PluginBase::INCLUDE_NEGOTIATED);
+      $options['field_langcode'] = array(
+        'category' => 'language',
+        'title' => $this->t('Field Language'),
+        'value' => $language_options[$this->getOption('field_langcode')],
+        'desc' => $this->t('All fields that support translations will be displayed in the selected language.'),
+      );
+    }
 
     $access_plugin = $this->getPlugin('access');
     if (!$access_plugin) {
@@ -1366,7 +1398,7 @@ abstract class DisplayPluginBase extends PluginBase {
       'desc' => $this->t('Change the CSS class name(s) that will be added to this display.'),
     );
 
-    foreach ($this->extender as $extender) {
+    foreach ($this->extenders as $extender) {
       $extender->optionsSummary($categories, $options);
     }
   }
@@ -1606,18 +1638,7 @@ abstract class DisplayPluginBase extends PluginBase {
         break;
       case 'field_langcode':
         $form['#title'] .= $this->t('Field Language');
-
-        $translatable_entity_tables = array();
-        foreach (\Drupal::entityManager()->getDefinitions() as $entity_type) {
-          if ($entity_type->isTranslatable() && $base_table = $entity_type->getBaseTable()) {
-            $translatable_entity_tables[] = $base_table;
-          }
-        }
-
-        // Doesn't make sense to show a field setting here if we aren't querying
-        // an entity base table. Also, we make sure that there's at least one
-        // entity type with a translation handler attached.
-        if (in_array($this->view->storage->get('base_table'), $translatable_entity_tables)) {
+        if ($this->isBaseTableTranslatable()) {
           $languages = $this->listLanguages(LanguageInterface::STATE_ALL | LanguageInterface::STATE_SITE_DEFAULT | PluginBase::INCLUDE_NEGOTIATED);
 
           $form['field_langcode'] = array(
@@ -1635,6 +1656,21 @@ abstract class DisplayPluginBase extends PluginBase {
         }
         else {
           $form['field_language']['#markup'] = $this->t("You don't have translatable entity types.");
+        }
+        break;
+      case 'rendering_language':
+        $form['#title'] .= $this->t('Entity Language');
+        if ($this->isBaseTableTranslatable()) {
+          $options = $this->buildRenderingLanguageOptions();
+          $form['rendering_language'] = array(
+            '#type' => 'select',
+            '#options' => $options,
+            '#title' => $this->t('Entity language'),
+            '#default_value' => $this->getOption('rendering_language'),
+          );
+        }
+        else {
+          $form['rendering_language']['#markup'] = $this->t("You don't have translatable entity types.");
         }
         break;
       case 'style':
@@ -1854,7 +1890,7 @@ abstract class DisplayPluginBase extends PluginBase {
         break;
     }
 
-    foreach ($this->extender as $extender) {
+    foreach ($this->extenders as $extender) {
       $extender->buildOptionsForm($form, $form_state);
     }
   }
@@ -1906,7 +1942,7 @@ abstract class DisplayPluginBase extends PluginBase {
       }
     }
 
-    foreach ($this->extender as $extender) {
+    foreach ($this->extenders as $extender) {
       $extender->validateOptionsForm($form, $form_state);
     }
   }
@@ -1954,6 +1990,9 @@ abstract class DisplayPluginBase extends PluginBase {
         $this->setOption('field_langcode', $form_state->getValue('field_langcode'));
         $this->setOption('field_langcode_add_to_query', $form_state->getValue('field_langcode_add_to_query'));
         break;
+      case 'rendering_language':
+        $this->setOption('rendering_language', $form_state->getValue('rendering_language'));
+        break;
       case 'use_ajax':
       case 'hide_attachment_summary':
       case 'show_admin_links':
@@ -1976,14 +2015,15 @@ abstract class DisplayPluginBase extends PluginBase {
         $plugin_options = $this->getOption($plugin_type);
         $type = $form_state->getValue(array($plugin_type, 'type'));
         if ($plugin_options['type'] != $type) {
+          /** @var \Drupal\views\Plugin\views\ViewsPluginInterface $plugin */
           $plugin = Views::pluginManager($plugin_type)->createInstance($type);
           if ($plugin) {
             $plugin->init($this->view, $this, $plugin_options['options']);
             $plugin_options = array(
               'type' => $type,
               'options' => $plugin->options,
-              'provider' => $plugin->definition['provider']
             );
+            $plugin->filterByDefinedOptions($plugin_options['options']);
             $this->setOption($plugin_type, $plugin_options);
             if ($plugin->usesOptions()) {
               $form_state->get('view')->addFormToStack('display', $this->display['id'], $plugin_type . '_options');
@@ -2010,9 +2050,14 @@ abstract class DisplayPluginBase extends PluginBase {
         break;
     }
 
-    foreach ($this->extender as $extender) {
+    $extender_options = $this->getOption('display_extenders');
+    foreach ($this->extenders as $extender) {
       $extender->submitOptionsForm($form, $form_state);
+
+      $plugin_id = $extender->getPluginId();
+      $extender_options[$plugin_id] = $extender->options;
     }
+    $this->setOption('display_extenders', $extender_options);
   }
 
   /**
@@ -2063,7 +2108,7 @@ abstract class DisplayPluginBase extends PluginBase {
    * Inject anything into the query that the display handler needs.
    */
   public function query() {
-    foreach ($this->extender as $extender) {
+    foreach ($this->extenders as $extender) {
       $extender->query();
     }
   }
@@ -2171,7 +2216,7 @@ abstract class DisplayPluginBase extends PluginBase {
     $element['#empty'] = $empty ? $view->display_handler->renderArea('empty', $empty) : array();
     $element['#exposed'] = !empty($view->exposed_widgets) ? $view->exposed_widgets : array();
     $element['#more'] = $view->display_handler->renderMoreLink();
-    $element['#feed_icon'] = !empty($view->feed_icon) ? $view->feed_icon : array();
+    $element['#feed_icons'] = !empty($view->feedIcons) ? $view->feedIcons : array();
 
     if ($view->display_handler->renderPager()) {
       $exposed_input = isset($view->exposed_raw_input) ? $view->exposed_raw_input : NULL;
@@ -2206,7 +2251,7 @@ abstract class DisplayPluginBase extends PluginBase {
         $element['#pager'] = array();
         $element['#footer'] = array();
         $element['#more'] = array();
-        $element['#feed_icon'] = array();
+        $element['#feed_icons'] = array();
       }
 
       $element['#rows'] = $form;
@@ -2244,11 +2289,6 @@ abstract class DisplayPluginBase extends PluginBase {
       $account = \Drupal::currentUser();
     }
 
-    // Full override.
-    if ($account->hasPermission('access all views')) {
-      return TRUE;
-    }
-
     $plugin = $this->getPlugin('access');
       /** @var \Drupal\views\Plugin\views\access\AccessPluginBase $plugin */
     if ($plugin) {
@@ -2275,7 +2315,7 @@ abstract class DisplayPluginBase extends PluginBase {
       $exposed_form->preExecute();
     }
 
-    foreach ($this->extender as $extender) {
+    foreach ($this->extenders as $extender) {
       $extender->preExecute();
     }
   }
@@ -2645,6 +2685,47 @@ abstract class DisplayPluginBase extends PluginBase {
     $this->setOption($types[$type]['plural'], $options);
   }
 
+  /**
+   * Gets the display extenders.
+   *
+   * @return \Drupal\views\Plugin\views\display_extender\DisplayExtenderPluginBase[]
+   */
+  public function getExtenders() {
+    return $this->extenders;
+  }
+
+  /**
+   * Returns the available rendering strategies for language-aware entities.
+   *
+   * @return array
+   *   An array of available entity row renderers keyed by renderer identifiers.
+   */
+  protected function buildRenderingLanguageOptions() {
+    // @todo Consider making these plugins. See https://drupal.org/node/2173811.
+    return array(
+      'current_language_renderer' => $this->t('Current language'),
+      'default_language_renderer' => $this->t('Default language'),
+      'translation_language_renderer' => $this->t('Translation language'),
+    );
+  }
+
+  /**
+   * Returns whether the base table is of a translatable entity type.
+   *
+   * @return bool
+   *   TRUE if the base table is of a translatable entity type, FALSE otherwise.
+   */
+  protected function isBaseTableTranslatable() {
+    $view_base_table = $this->view->storage->get('base_table');
+    foreach (\Drupal::entityManager()->getDefinitions() as $entity_type) {
+      if ($entity_type->isTranslatable() && $base_table = $entity_type->getBaseTable()) {
+        if ($base_table === $view_base_table) {
+          return TRUE;
+        }
+      }
+    }
+    return FALSE;
+  }
 }
 
 /**

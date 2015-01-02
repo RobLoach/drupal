@@ -53,8 +53,7 @@ interface ComplexDataInterface extends TraversableTypedDataInterface  {
    *   TRUE. If the update stems from a parent object, set it to FALSE to avoid
    *   being notified again.
    *
-   * @return \Drupal\Core\TypedData\TypedDataInterface
-   *   The property object.
+   * @return $this
    *
    * @throws \InvalidArgumentException
    *   If the specified property does not exist.
@@ -100,13 +99,4 @@ interface ComplexDataInterface extends TraversableTypedDataInterface  {
    */
   public function isEmpty();
 
-  /**
-   * React to changes to a child property.
-   *
-   * Note that this is invoked after any changes have been applied.
-   *
-   * @param $property_name
-   *   The name of the property which is changed.
-   */
-  public function onChange($property_name);
 }

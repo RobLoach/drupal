@@ -7,6 +7,8 @@
 
 namespace Drupal\entity_reference\Tests;
 
+use Drupal\config\Tests\SchemaCheckTestTrait;
+use Drupal\field\Entity\FieldConfig;
 use Drupal\system\Tests\Entity\EntityUnitTestBase;
 use Drupal\Core\Field\FieldStorageDefinitionInterface;
 
@@ -16,6 +18,7 @@ use Drupal\Core\Field\FieldStorageDefinitionInterface;
  * @group entity_reference
  */
 class EntityReferenceFieldTest extends EntityUnitTestBase {
+  use SchemaCheckTestTrait;
 
   /**
    * The entity type used in this test.
@@ -124,6 +127,12 @@ class EntityReferenceFieldTest extends EntityUnitTestBase {
     $reference_field[5] = $reference_field[0];
     $target_entities[5] = $target_entities[0];
 
+    // Create a new target entity that is not saved, thus testing the
+    // "autocreate" feature.
+    $target_entity_unsaved = entity_create($this->referencedEntityType, array('type' => $this->bundle, 'name' => $this->randomString()));
+    $reference_field[6]['entity'] = $target_entity_unsaved;
+    $target_entities[6] = $target_entity_unsaved;
+
     // Set the field value.
     $entity->{$this->fieldName}->setValue($reference_field);
 
@@ -135,9 +144,16 @@ class EntityReferenceFieldTest extends EntityUnitTestBase {
     // - Non-existent entities must not be retrieved in target entities result.
     foreach ($target_entities as $delta => $target_entity) {
       if (!empty($target_entity)) {
-        // There must be an entity in the loaded set having the same id for the
-        // same delta.
-        $this->assertEqual($target_entity->id(), $entities[$delta]->id());
+        if (!$target_entity->isNew()) {
+          // There must be an entity in the loaded set having the same id for
+          // the same delta.
+          $this->assertEqual($target_entity->id(), $entities[$delta]->id());
+        }
+        else {
+          // For entities that were not yet saved, there must an entity in the
+          // loaded set having the same label for the same delta.
+          $this->assertEqual($target_entity->label(), $entities[$delta]->label());
+        }
       }
       else {
         // A non-existent or NULL entity target id must not return any item in
@@ -145,6 +161,49 @@ class EntityReferenceFieldTest extends EntityUnitTestBase {
         $this->assertFalse(isset($loaded_entities[$delta]));
       }
     }
+  }
+
+  /**
+   * Tests referencing entities with string IDs.
+   */
+  public function testReferencedEntitiesStringId() {
+    $field_name = 'entity_reference_string_id';
+    $this->installEntitySchema('entity_test_string_id');
+    entity_reference_create_field(
+      $this->entityType,
+      $this->bundle,
+      $field_name,
+      'Field test',
+      'entity_test_string_id',
+      'default',
+      array('target_bundles' => array($this->bundle)),
+      FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED
+    );
+    // Create the parent entity.
+    $entity = entity_create($this->entityType, array('type' => $this->bundle));
+
+    // Create the default target entity.
+    $target_entity = entity_create('entity_test_string_id', array('id' => $this->randomString(), 'type' => $this->bundle));
+    $target_entity->save();
+
+    // Set the field value.
+    $entity->{$field_name}->setValue(array(array('target_id' => $target_entity->id())));
+
+    // Load the target entities using EntityReferenceField::referencedEntities().
+    $entities = $entity->{$field_name}->referencedEntities();
+    $this->assertEqual($entities[0]->id(), $target_entity->id());
+
+    // Test that a string ID works as a default value and the field's config
+    // schema is correct.
+    $field = FieldConfig::loadByName($this->entityType, $this->bundle, $field_name);
+    $field->setDefaultValue($target_entity->id());
+    $field->save();
+    $this->assertConfigSchema(\Drupal::service('config.typed'), 'field.field.' . $field->id(), $field->toArray());
+
+    // Test that the default value works.
+    $entity = entity_create($this->entityType, array('type' => $this->bundle));
+    $entities = $entity->{$field_name}->referencedEntities();
+    $this->assertEqual($entities[0]->id(), $target_entity->id());
   }
 
 }

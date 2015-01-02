@@ -7,7 +7,6 @@
 
 namespace Drupal\entity_reference\Plugin\Field\FieldWidget;
 
-use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Form\FormStateInterface;
 
 /**
@@ -46,18 +45,6 @@ class AutocompleteWidget extends AutocompleteWidgetBase {
   /**
    * {@inheritdoc}
    */
-  protected function getEntityIds(FieldItemListInterface $items, $delta) {
-    // The autocomplete widget outputs one entity label per form element.
-    if (isset($items[$delta])) {
-      return array($items[$delta]->target_id);
-    }
-
-    return array();
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function elementValidate($element, FormStateInterface $form_state, $form) {
     $auto_create = $this->getSelectionHandlerSetting('auto_create');
 
@@ -89,11 +76,11 @@ class AutocompleteWidget extends AutocompleteWidgetBase {
           // Keep the weight property.
           '_weight' => $element['#weight'],
         );
-        // Change the element['#parents'], so in form_set_value() we
+        // Change the element['#parents'], so in setValueForElement() we
         // populate the correct key.
         array_pop($element['#parents']);
       }
     }
-    form_set_value($element, $value, $form_state);
+    $form_state->setValueForElement($element, $value);
   }
 }

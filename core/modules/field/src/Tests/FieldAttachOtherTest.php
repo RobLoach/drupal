@@ -20,6 +20,8 @@ class FieldAttachOtherTest extends FieldUnitTestBase {
 
   protected function setUp() {
     parent::setUp();
+    $this->installSchema('system', array('router'));
+    $this->container->get('router.builder')->rebuild();
     $this->installEntitySchema('entity_test_rev');
     $this->createFieldWithStorage();
   }
@@ -333,7 +335,7 @@ class FieldAttachOtherTest extends FieldUnitTestBase {
     // Pretend the form has been built.
     $form_state->setFormObject(\Drupal::entityManager()->getFormObject($entity_type, 'default'));
     \Drupal::formBuilder()->prepareForm('field_test_entity_form', $form, $form_state);
-    drupal_process_form('field_test_entity_form', $form, $form_state);
+    \Drupal::formBuilder()->processForm('field_test_entity_form', $form, $form_state);
     $form_state->setValue($this->fieldTestData->field_name, $values);
     $form_state->setValue($this->fieldTestData->field_name_2, $values_2);
 

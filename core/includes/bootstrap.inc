@@ -26,13 +26,6 @@ use Drupal\Core\Language\LanguageInterface;
 const DRUPAL_MINIMUM_PHP = '5.4.5';
 
 /**
- * Minimum supported version of PHP on Debian.
- *
- * @see https://www.drupal.org/node/2267551.
- */
-const DRUPAL_MINIMUM_PHP_DEBIAN = '5.4.4-14+deb7u14';
-
-/**
  * Minimum recommended value of PHP memory_limit.
  *
  * @todo Reduce the memory required to install on some environments in
@@ -284,7 +277,7 @@ function drupal_get_filename($type, $name, $filename = NULL) {
     }
     // If still unknown, perform a filesystem scan.
     if (!isset($files[$type][$name])) {
-      $listing = new ExtensionDiscovery();
+      $listing = new ExtensionDiscovery(DRUPAL_ROOT);
       // Prevent an infinite recursion by this legacy function.
       if ($original_type == 'profile') {
         $listing->setProfileDirectories(array());
@@ -314,7 +307,7 @@ function drupal_page_cache_get_cid(Request $request) {
     $request->getUri(),
     \Drupal::service('content_negotiation')->getContentType($request),
   );
-  return sha1(implode(':', $cid_parts));
+  return implode(':', $cid_parts);
 }
 
 /**
@@ -414,94 +407,6 @@ function _drupal_set_preferred_header_name($name = NULL) {
     return $header_names;
   }
   $header_names[strtolower($name)] = $name;
-}
-
-/**
- * Sends the HTTP response headers that were previously set, adding defaults.
- *
- * Headers are set in _drupal_add_http_header(). Default headers are not set
- * if they have been replaced or unset using _drupal_add_http_header().
- *
- * @param array $default_headers
- *   (optional) An array of headers as name/value pairs.
- * @param bool $only_default
- *   (optional) If TRUE and headers have already been sent, send only the
- *   specified headers.
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- *   See https://drupal.org/node/2181523.
- */
-function drupal_send_headers($default_headers = array(), $only_default = FALSE) {
-  $headers_sent = &drupal_static(__FUNCTION__, FALSE);
-  $headers = drupal_get_http_header();
-  if ($only_default && $headers_sent) {
-    $headers = array();
-  }
-  $headers_sent = TRUE;
-
-  $header_names = _drupal_set_preferred_header_name();
-  foreach ($default_headers as $name => $value) {
-    $name_lower = strtolower($name);
-    if (!isset($headers[$name_lower])) {
-      $headers[$name_lower] = $value;
-      $header_names[$name_lower] = $name;
-    }
-  }
-  foreach ($headers as $name_lower => $value) {
-    if ($name_lower == 'status') {
-      header($_SERVER['SERVER_PROTOCOL'] . ' ' . $value);
-    }
-    // Skip headers that have been unset.
-    elseif ($value !== FALSE) {
-      header($header_names[$name_lower] . ': ' . $value);
-    }
-  }
-}
-
-/**
- * Sets HTTP headers in preparation for a page response.
- *
- * Authenticated users are always given a 'no-cache' header, and will fetch a
- * fresh page on every request. This prevents authenticated users from seeing
- * locally cached pages.
- *
- * Also give each page a unique ETag. This should force clients to include both
- * an If-Modified-Since header and an If-None-Match header when doing
- * conditional requests for the page (required by RFC 2616, section 13.3.4),
- * making the validation more robust. This is a workaround for a bug in Mozilla
- * Firefox that is triggered when Drupal's caching is enabled and the user
- * accesses Drupal via an HTTP proxy (see
- * https://bugzilla.mozilla.org/show_bug.cgi?id=269303): When an authenticated
- * user requests a page, and then logs out and requests the same page again,
- * Firefox may send a conditional request based on the page that was cached
- * locally when the user was logged in. If this page did not have an ETag
- * header, the request only contains an If-Modified-Since header. The date will
- * be recent, because with authenticated users the Last-Modified header always
- * refers to the time of the request. If the user accesses Drupal via a proxy
- * server, and the proxy already has a cached copy of the anonymous page with an
- * older Last-Modified date, the proxy may respond with 304 Not Modified, making
- * the client think that the anonymous and authenticated pageviews are
- * identical.
- *
- * @see drupal_page_set_cache()
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- *   See https://drupal.org/node/2181523.
- */
-function drupal_page_header() {
-  $headers_sent = &drupal_static(__FUNCTION__, FALSE);
-  if ($headers_sent) {
-    return TRUE;
-  }
-  $headers_sent = TRUE;
-
-  $default_headers = array(
-    'Expires' => 'Sun, 19 Nov 1978 05:00:00 GMT',
-    'Last-Modified' => gmdate(DateTimePlus::RFC7231, REQUEST_TIME),
-    'Cache-Control' => 'no-cache, must-revalidate, post-check=0, pre-check=0',
-    'ETag' => '"' . REQUEST_TIME . '"',
-  );
-  drupal_send_headers($default_headers);
 }
 
 /**
@@ -790,7 +695,7 @@ function watchdog_exception($type, Exception $exception, $message = NULL, $varia
  *   If there are no messages set, the function returns NULL.
  *
  * @see drupal_get_messages()
- * @see theme_status_messages()
+ * @see status-messages.html.twig
  */
 function drupal_set_message($message = NULL, $type = 'status', $repeat = FALSE) {
   if (isset($message)) {
@@ -798,11 +703,12 @@ function drupal_set_message($message = NULL, $type = 'status', $repeat = FALSE) 
       $_SESSION['messages'][$type] = array();
     }
 
-    if ($repeat || !in_array($message, $_SESSION['messages'][$type])) {
-      $_SESSION['messages'][$type][] = array(
-        'safe' => SafeMarkup::isSafe($message),
-        'message' => $message,
-      );
+    $new = array(
+      'safe' => SafeMarkup::isSafe($message),
+      'message' => $message,
+    );
+    if ($repeat || !in_array($new, $_SESSION['messages'][$type])) {
+      $_SESSION['messages'][$type][] = $new;
     }
 
     // Mark this page as being uncacheable.
@@ -836,7 +742,7 @@ function drupal_set_message($message = NULL, $type = 'status', $repeat = FALSE) 
  *   drupal_set_message() for the array structure of individual messages.
  *
  * @see drupal_set_message()
- * @see theme_status_messages()
+ * @see status-messages.html.twig
  */
 function drupal_get_messages($type = NULL, $clear_queue = TRUE) {
   if ($messages = drupal_set_message()) {
@@ -1226,8 +1132,6 @@ function language_default() {
  *
  * @return
  *   The requested Drupal URL path.
- *
- * @see current_path()
  */
 function request_path() {
   static $path;
@@ -1263,18 +1167,6 @@ function request_path() {
 }
 
 /**
- * @todo This is a temporary function pending refactoring Drupal to use
- *   Symfony's Request object exclusively.
- */
-function _current_path($path = NULL) {
-  static $current_path = '';
-  if (isset($path)) {
-    $current_path = $path;
-  }
-  return $current_path;
-}
-
-/**
  * Registers an additional namespace.
  *
  * @param string $name
@@ -1284,7 +1176,7 @@ function _current_path($path = NULL) {
  */
 function drupal_classloader_register($name, $path) {
   $loader = \Drupal::service('class_loader');
-  $loader->addPsr4('Drupal\\' . $name . '\\', DRUPAL_ROOT . '/' . $path . '/src');
+  $loader->addPsr4('Drupal\\' . $name . '\\', \Drupal::root() . '/' . $path . '/src');
 }
 
 /**

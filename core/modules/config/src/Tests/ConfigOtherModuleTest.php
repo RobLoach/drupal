@@ -25,7 +25,7 @@ class ConfigOtherModuleTest extends WebTestBase {
     // Check that the config entity doesn't exist before the config_test module
     // is enabled. We cannot use the entity system because the config_test
     // entity type does not exist.
-    $config = $this->container->get('config.factory')->get('config_test.dynamic.other_module_test');
+    $config = $this->config('config_test.dynamic.other_module_test');
     $this->assertTrue($config->isNew(), 'Default configuration for other modules is not installed if that module is not enabled.');
 
     // Install the module that provides the entity type. This installs the
@@ -36,7 +36,7 @@ class ConfigOtherModuleTest extends WebTestBase {
     // Uninstall the module that provides the entity type. This will remove the
     // default configuration.
     $this->uninstallModule('config_test');
-    $config = $this->container->get('config.factory')->get('config_test.dynamic.other_module_test');
+    $config = $this->config('config_test.dynamic.other_module_test');
     $this->assertTrue($config->isNew(), 'Default configuration for other modules is removed when the config entity provider is disabled.');
 
     // Install the module that provides the entity type again. This installs the
@@ -93,7 +93,7 @@ class ConfigOtherModuleTest extends WebTestBase {
    *   The module name.
    */
   protected function installModule($module) {
-    $this->container->get('module_handler')->install(array($module));
+    $this->container->get('module_installer')->install(array($module));
     $this->container = \Drupal::getContainer();
   }
 
@@ -104,7 +104,7 @@ class ConfigOtherModuleTest extends WebTestBase {
    *   The module name.
    */
   protected function uninstallModule($module) {
-    $this->container->get('module_handler')->uninstall(array($module));
+    $this->container->get('module_installer')->uninstall(array($module));
     $this->container = \Drupal::getContainer();
   }
 

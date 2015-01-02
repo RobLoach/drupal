@@ -49,7 +49,7 @@ const USER_REGISTER_VISITORS = 'visitors';
 const USER_REGISTER_VISITORS_ADMINISTRATIVE_APPROVAL = 'visitors_admin_approval';
 
 /**
- * Implement hook_help().
+ * Implements hook_help().
  */
 function user_help($route_name, RouteMatchInterface $route_match) {
   switch ($route_name) {
@@ -108,35 +108,17 @@ function user_theme() {
 }
 
 /**
- * Implements hook_page_attachments().
+ * Implements hook_js_settings_alter().
  */
-function user_page_attachments(array &$page) {
-  $path = drupal_get_path('module', 'user');
-  $page['#attached']['css'][$path . '/css/user.module.css'] = array('every_page' => TRUE);
-}
-
-/**
- * Implements hook_js_alter().
- */
-function user_js_alter(&$javascript) {
-  // If >=1 JavaScript asset has declared a dependency on drupalSettings, the
-  // 'settings' key will exist. Thus when that key does not exist, return early.
-  if (!isset($javascript['settings'])) {
-    return;
-  }
-
+function user_js_settings_alter(&$settings) {
   // Provide the user ID in drupalSettings to allow JavaScript code to customize
   // the experience for the end user, rather than the server side, which would
   // break the render cache.
   // Similarly, provide a permissions hash, so that permission-dependent data
   // can be reliably cached on the client side.
   $user = \Drupal::currentUser();
-  $javascript['settings']['data'][] = array(
-    'user' => array(
-      'uid' => $user->id(),
-      'permissionsHash' => \Drupal::service('user.permissions_hash')->generate($user),
-    ),
-  );
+  $settings['user']['uid'] = $user->id();
+  $settings['user']['permissionsHash'] = \Drupal::service('user.permissions_hash')->generate($user);
 }
 
 /**
@@ -444,18 +426,6 @@ function user_user_view(array &$build, UserInterface $account, EntityViewDisplay
 }
 
 /**
- * Sets the value of the user register and profile forms' langcode element.
- */
-function _user_language_selector_langcode_value($element, $input, FormStateInterface $form_state) {
-  // Only add to the description if the form element have a description.
-  $complete_form = &$form_state->getCompleteForm();
-  if (isset($complete_form['language']['preferred_langcode']['#description'])) {
-    $complete_form['language']['preferred_langcode']['#description'] .= ' ' . t("This is also assumed to be the primary language of this account's profile information.");
-  }
-  return $form_state->getValue('preferred_langcode');
-}
-
-/**
  * Form validation handler for the current password on the user account form.
  *
  * @see AccountForm::form()
@@ -564,7 +534,7 @@ function template_preprocess_username(&$variables) {
   // their own shortening logic or add markup. If they do so, they must ensure
   // that $variables['name'] is safe for printing.
   $name = $variables['name_raw'] = $account->getUsername();
-  if (drupal_strlen($name) > 20) {
+  if (Unicode::strlen($name) > 20) {
     $name = Unicode::truncate($name, 15, FALSE, TRUE);
     $variables['truncated'] = TRUE;
   }
@@ -1275,7 +1245,7 @@ function user_role_revoke_permissions($rid, array $permissions = array()) {
  * operation happens on the given user account.
  *
  * @see user_mail_tokens()
- * @see drupal_mail()
+ * @see \Drupal\Core\Mail\MailManagerInterface::mail()
  *
  * @param $op
  *   The operation being performed on the account. Possible values:
@@ -1298,8 +1268,8 @@ function user_role_revoke_permissions($rid, array $permissions = array()) {
  *   language.
  *
  * @return
- *   The return value from drupal_mail_system()->mail(), if ends up being
- *   called.
+ *   The return value from \Drupal::service('plugin.manager.mail')->mail(), if
+ *   ends up being called.
  */
 function _user_mail_notify($op, $account, $langcode = NULL) {
   // By default, we always notify except for canceled and blocked.
@@ -1318,11 +1288,11 @@ function _user_mail_notify($op, $account, $langcode = NULL) {
     if (empty($site_mail)) {
       $site_mail = ini_get('sendmail_from');
     }
-    $mail = drupal_mail('user', $op, $account->getEmail(), $langcode, $params, $site_mail);
+    $mail = \Drupal::service('plugin.manager.mail')->mail('user', $op, $account->getEmail(), $langcode, $params, $site_mail);
     if ($op == 'register_pending_approval') {
       // If a user registered requiring admin approval, notify the admin, too.
       // We use the site default language for this.
-      drupal_mail('user', 'register_pending_approval_admin', $site_mail, \Drupal::languageManager()->getDefaultLanguage()->getId(), $params);
+      \Drupal::service('plugin.manager.mail')->mail('user', 'register_pending_approval_admin', $site_mail, \Drupal::languageManager()->getDefaultLanguage()->getId(), $params);
     }
   }
   return empty($mail) ? NULL : $mail['result'];
@@ -1371,17 +1341,8 @@ function user_form_process_password_confirm($element) {
     );
   }
 
-  $js_settings = array(
-    'password' => $password_settings,
-  );
-
   $element['#attached']['library'][] = 'user/drupal.user';
-  // Ensure settings are only added once per page.
-  static $already_added = FALSE;
-  if (!$already_added) {
-    $already_added = TRUE;
-    $element['#attached']['js'][] = array('data' => $js_settings, 'type' => 'setting');
-  }
+  $element['#attached']['drupalSettings']['password'] = $password_settings;
 
   return $element;
 }

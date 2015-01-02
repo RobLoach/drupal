@@ -80,7 +80,7 @@ abstract class WebTestBase extends TestBase {
   /**
    * The current user logged in using the internal browser.
    *
-   * @var bool
+   * @var \Drupal\Core\Session\AccountInterface|bool
    */
   protected $loggedInUser = FALSE;
 
@@ -275,6 +275,7 @@ abstract class WebTestBase extends TestBase {
     );
     $type = entity_create('node_type', $values);
     $status = $type->save();
+    node_add_body_field($type);
     \Drupal::service('router.builder')->rebuild();
 
     $this->assertEqual($status, SAVED_NEW, String::format('Created content type %type.', array('%type' => $type->id())));
@@ -373,7 +374,7 @@ abstract class WebTestBase extends TestBase {
       'plugin' => $plugin_id,
       'region' => 'sidebar_first',
       'id' => strtolower($this->randomMachineName(8)),
-      'theme' => \Drupal::config('system.theme')->get('default'),
+      'theme' => $this->config('system.theme')->get('default'),
       'label' => $this->randomMachineName(8),
       'visibility' => array(),
       'weight' => 0,
@@ -381,13 +382,14 @@ abstract class WebTestBase extends TestBase {
         'max_age' => 0,
       ),
     );
-    foreach (array('region', 'id', 'theme', 'plugin', 'weight') as $key) {
+    $values = [];
+    foreach (array('region', 'id', 'theme', 'plugin', 'weight', 'visibility') as $key) {
       $values[$key] = $settings[$key];
       // Remove extra values that do not belong in the settings array.
       unset($settings[$key]);
     }
-    foreach ($settings['visibility'] as $id => $visibility) {
-      $settings['visibility'][$id]['id'] = $id;
+    foreach ($values['visibility'] as $id => $visibility) {
+      $values['visibility'][$id]['id'] = $id;
     }
     $values['settings'] = $settings;
     $block = entity_create('block', $values);
@@ -673,7 +675,7 @@ abstract class WebTestBase extends TestBase {
       'name' => $account->getUsername(),
       'pass' => $account->pass_raw
     );
-    $this->drupalPostForm('user', $edit, t('Log in'));
+    $this->drupalPostForm('user/login', $edit, t('Log in'));
 
     // @see WebTestBase::drupalUserIsLoggedIn()
     if (isset($this->session_id)) {
@@ -710,7 +712,7 @@ abstract class WebTestBase extends TestBase {
     // Make a request to the logout page, and redirect to the user page, the
     // idea being if you were properly logged out you should be seeing a login
     // screen.
-    $this->drupalGet('user/logout', array('query' => array('destination' => 'user')));
+    $this->drupalGet('user/logout', array('query' => array('destination' => 'user/login')));
     $this->assertResponse(200, 'User was logged out.');
     $pass = $this->assertField('name', 'Username field found.', 'Logout');
     $pass = $pass && $this->assertField('pass', 'Password field found.', 'Logout');
@@ -792,6 +794,10 @@ abstract class WebTestBase extends TestBase {
       'value' => $this->public_files_directory,
       'required' => TRUE,
     );
+    $settings['settings']['file_private_path'] = (object) array(
+      'value' => $this->private_files_directory,
+      'required' => TRUE,
+    );
     // Save the original site directory path, so that extensions in the
     // site-specific directory can still be discovered in the test site
     // environment.
@@ -821,19 +827,29 @@ abstract class WebTestBase extends TestBase {
       // Copy the testing-specific service overrides in place.
       copy($settings_services_file, $directory . '/services.yml');
     }
-
+    if ($this->strictConfigSchema) {
+      // Add a listener to validate configuration schema on save.
+      $yaml = new \Symfony\Component\Yaml\Yaml();
+      $services = $yaml->parse($directory . '/services.yml');
+      $services['services']['simpletest.config_schema_checker'] = [
+        'class' => 'Drupal\Core\Config\Testing\ConfigSchemaChecker',
+        'arguments' => ['@config.typed'],
+        'tags' => [['name' => 'event_subscriber']]
+      ];
+      file_put_contents($directory . '/services.yml', $yaml->dump($services));
+    }
     // Since Drupal is bootstrapped already, install_begin_request() will not
     // bootstrap into DRUPAL_BOOTSTRAP_CONFIGURATION (again). Hence, we have to
     // reload the newly written custom settings.php manually.
     $class_loader = require DRUPAL_ROOT . '/core/vendor/autoload.php';
-    Settings::initialize($directory, $class_loader);
+    Settings::initialize(DRUPAL_ROOT, $directory, $class_loader);
 
     // Execute the non-interactive installer.
     require_once DRUPAL_ROOT . '/core/includes/install.core.inc';
-    install_drupal($parameters);
+    install_drupal($class_loader, $parameters);
 
     // Import new settings.php written by the installer.
-    Settings::initialize($directory, $class_loader);
+    Settings::initialize(DRUPAL_ROOT, $directory, $class_loader);
     foreach ($GLOBALS['config_directories'] as $type => $path) {
       $this->configDirectories[$type] = $path;
     }
@@ -862,7 +878,6 @@ abstract class WebTestBase extends TestBase {
     file_prepare_directory($this->private_files_directory, FILE_CREATE_DIRECTORY);
     file_prepare_directory($this->temp_files_directory, FILE_CREATE_DIRECTORY);
     $config->get('system.file')
-      ->set('path.private', $this->private_files_directory)
       ->set('path.temporary', $this->temp_files_directory)
       ->save();
 
@@ -901,8 +916,15 @@ abstract class WebTestBase extends TestBase {
     }
     if ($modules) {
       $modules = array_unique($modules);
-      $success = $container->get('module_handler')->install($modules, TRUE);
-      $this->assertTrue($success, String::format('Enabled modules: %modules', array('%modules' => implode(', ', $modules))));
+      try {
+        $success = $container->get('module_installer')->install($modules, TRUE);
+        $this->assertTrue($success, String::format('Enabled modules: %modules', array('%modules' => implode(', ', $modules))));
+      }
+      catch (\Drupal\Core\Extension\MissingDependencyException $e) {
+        // The exception message has all the details.
+        $this->fail($e->getMessage());
+      }
+
       $this->rebuildContainer();
     }
 
@@ -920,12 +942,6 @@ abstract class WebTestBase extends TestBase {
     //   DrupalKernel::prepareLegacyRequest() -> DrupalKernel::boot() but that
     //   appears to be calling a different container.
     $this->container->get('stream_wrapper_manager')->register();
-    // Temporary fix so that when running from run-tests.sh we don't get an
-    // empty current path which would indicate we're on the home page.
-    $path = current_path();
-    if (empty($path)) {
-      _current_path('run-tests');
-    }
   }
 
   /**
@@ -1838,7 +1854,7 @@ abstract class WebTestBase extends TestBase {
       }
       switch ($command['command']) {
         case 'settings':
-          $drupal_settings = drupal_merge_js_settings(array($drupal_settings, $command['settings']));
+          $drupal_settings = NestedArray::mergeDeepArray([$drupal_settings, $command['settings']], TRUE);
           break;
 
         case 'insert':
@@ -2043,7 +2059,7 @@ abstract class WebTestBase extends TestBase {
         // Parse the content attribute of the meta tag for the format:
         // "[delay]: URL=[page_to_redirect_to]".
         if (preg_match('/\d+;\s*URL=(?<url>.*)/i', $refresh[0]['content'], $match)) {
-          return $this->drupalGet($this->getAbsoluteUrl(decode_entities($match['url'])));
+          return $this->drupalGet($this->getAbsoluteUrl(String::decodeEntities($match['url'])));
         }
       }
     }
@@ -2299,16 +2315,6 @@ abstract class WebTestBase extends TestBase {
       $path = $base_url . $path;
     }
     return $path;
-  }
-
-  /**
-   * Get the current URL from the cURL handler.
-   *
-   * @return
-   *   The current URL.
-   */
-  protected function getUrl() {
-    return $this->url;
   }
 
   /**

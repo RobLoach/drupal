@@ -7,18 +7,17 @@
 
 namespace Drupal\system\Tests\Common;
 
-use Drupal\Core\Page\FeedLinkElement;
-use Drupal\Core\Page\HtmlPage;
 use Drupal\simpletest\WebTestBase;
 
 /**
- * Make sure that _drupal_add_feed() works correctly with various constructs.
+ * Make sure that attaching feeds works correctly with various constructs.
  *
  * @group Common
  */
 class AddFeedTest extends WebTestBase {
+
   /**
-   * Tests _drupal_add_feed() with paths, URLs, and titles.
+   * Tests attaching feeds with paths, URLs, and titles.
    */
   function testBasicFeedAddNoTitle() {
     $path = $this->randomMachineName(12);
@@ -29,10 +28,6 @@ class AddFeedTest extends WebTestBase {
     $external_for_title = 'http://' . $this->randomMachineName(12) . '/' . $this->randomMachineName(12);
     $fully_qualified_for_title = _url($this->randomMachineName(12), array('absolute' => TRUE));
 
-    // Possible permutations of _drupal_add_feed() to test.
-    // - 'input_url': the path passed to _drupal_add_feed(),
-    // - 'output_url': the expected URL to be found in the header.
-    // - 'title' == the title of the feed as passed into _drupal_add_feed().
     $urls = array(
       'path without title' => array(
         'url' => _url($path, array('absolute' => TRUE)),
@@ -60,14 +55,14 @@ class AddFeedTest extends WebTestBase {
       ),
     );
 
-    $html_page = new HtmlPage();
-
+    $build = [];
     foreach ($urls as $feed_info) {
-      $feed_link = new FeedLinkElement($feed_info['title'], $feed_info['url']);
-      $html_page->addLinkElement($feed_link);
+      $build['#attached']['feed'][] = [$feed_info['url'], $feed_info['title']];
     }
 
-    $this->drupalSetContent(\Drupal::service('html_page_renderer')->render($html_page));
+    drupal_process_attached($build);
+
+    $this->drupalSetContent(drupal_get_html_head());
     foreach ($urls as $description => $feed_info) {
       $this->assertPattern($this->urlToRSSLinkPattern($feed_info['url'], $feed_info['title']), format_string('Found correct feed header for %description', array('%description' => $description)));
     }
@@ -79,7 +74,7 @@ class AddFeedTest extends WebTestBase {
   function urlToRSSLinkPattern($url, $title = '') {
     // Escape any regular expression characters in the URL ('?' is the worst).
     $url = preg_replace('/([+?.*])/', '[$0]', $url);
-    $generated_pattern = '%<link +title="' . $title . '" +type="application/rss.xml" +href="' . $url . '" +rel="alternate" */>%';
+    $generated_pattern = '%<link +href="' . $url . '" +rel="alternate" +title="' . $title . '" +type="application/rss.xml" */>%';
     return $generated_pattern;
   }
 

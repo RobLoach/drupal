@@ -196,7 +196,7 @@ class ImageItem extends FileItem {
     $settings = $this->getSettings();
 
     // Add maximum and minimum resolution settings.
-    $max_resolution = explode('×', $settings['max_resolution']) + array('', '');
+    $max_resolution = explode('x', $settings['max_resolution']) + array('', '');
     $element['max_resolution'] = array(
       '#type' => 'item',
       '#title' => t('Maximum image resolution'),
@@ -223,7 +223,7 @@ class ImageItem extends FileItem {
       '#field_suffix' => ' ' . t('pixels'),
     );
 
-    $min_resolution = explode('×', $settings['min_resolution']) + array('', '');
+    $min_resolution = explode('x', $settings['min_resolution']) + array('', '');
     $element['min_resolution'] = array(
       '#type' => 'item',
       '#title' => t('Minimum image resolution'),
@@ -269,7 +269,7 @@ class ImageItem extends FileItem {
       '#weight' => 10,
       '#states' => array(
         'visible' => array(
-          ':input[name="instance[settings][alt_field]"]' => array('checked' => TRUE),
+          ':input[name="field[settings][alt_field]"]' => array('checked' => TRUE),
         ),
       ),
     );
@@ -287,7 +287,7 @@ class ImageItem extends FileItem {
       '#weight' => 12,
       '#states' => array(
         'visible' => array(
-          ':input[name="instance[settings][title_field]"]' => array('checked' => TRUE),
+          ':input[name="field[settings][title_field]"]' => array('checked' => TRUE),
         ),
       ),
     );
@@ -379,10 +379,10 @@ class ImageItem extends FileItem {
           return;
         }
       }
-      form_set_value($element, $element['x']['#value'] . 'x' . $element['y']['#value'], $form_state);
+      $form_state->setValueForElement($element, $element['x']['#value'] . 'x' . $element['y']['#value']);
     }
     else {
-      form_set_value($element, '', $form_state);
+      $form_state->setValueForElement($element, '');
     }
   }
 
@@ -406,7 +406,10 @@ class ImageItem extends FileItem {
       '#description' => t('Image to be shown if no image is uploaded.'),
       '#default_value' => empty($settings['default_image']['fid']) ? array() : array($settings['default_image']['fid']),
       '#upload_location' => $settings['uri_scheme'] . '://default_images/',
-      '#element_validate' => array('file_managed_file_validate', array(get_class($this), 'validateDefaultImageForm')),
+      '#element_validate' => array(
+        '\Drupal\file\Element\ManagedFile::validateManagedFile',
+        array(get_class($this), 'validateDefaultImageForm'),
+      ),
       '#upload_validators' => $this->getUploadValidators(),
     );
     $element['default_image']['alt'] = array(

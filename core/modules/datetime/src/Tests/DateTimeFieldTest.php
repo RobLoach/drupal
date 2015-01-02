@@ -7,9 +7,10 @@
 
 namespace Drupal\datetime\Tests;
 
+use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Entity\Entity\EntityViewDisplay;
-use Drupal\simpletest\WebTestBase;
 use Drupal\Core\Datetime\DrupalDateTime;
+use Drupal\simpletest\WebTestBase;
 
 /**
  * Tests Datetime field functionality.
@@ -24,6 +25,13 @@ class DateTimeFieldTest extends WebTestBase {
    * @var array
    */
   public static $modules = array('node', 'entity_test', 'datetime', 'field_ui');
+
+  /**
+   * An array of display options to pass to entity_get_display()
+   *
+   * @var array
+   */
+  protected $displayOptions;
 
   /**
    * A field storage to use in this test class.
@@ -52,7 +60,7 @@ class DateTimeFieldTest extends WebTestBase {
     $this->drupalLogin($web_user);
 
     // Create a field with settings to validate.
-    $field_name = drupal_strtolower($this->randomMachineName());
+    $field_name = Unicode::strtolower($this->randomMachineName());
     $this->fieldStorage = entity_create('field_storage_config', array(
       'field_name' => $field_name,
       'entity_type' => 'entity_test',
@@ -73,13 +81,13 @@ class DateTimeFieldTest extends WebTestBase {
       ))
       ->save();
 
-    $this->display_options = array(
+    $this->displayOptions = array(
       'type' => 'datetime_default',
       'label' => 'hidden',
       'settings' => array('format_type' => 'medium'),
     );
     entity_get_display($this->field->entity_type, $this->field->bundle, 'full')
-      ->setComponent($field_name, $this->display_options)
+      ->setComponent($field_name, $this->displayOptions)
       ->save();
   }
 
@@ -121,9 +129,9 @@ class DateTimeFieldTest extends WebTestBase {
     foreach ($options as $setting => $values) {
       foreach ($values as $new_value) {
         // Update the entity display settings.
-        $this->display_options['settings'] = array($setting => $new_value);
+        $this->displayOptions['settings'] = array($setting => $new_value);
         entity_get_display($this->field->entity_type, $this->field->bundle, 'full')
-          ->setComponent($field_name, $this->display_options)
+          ->setComponent($field_name, $this->displayOptions)
           ->save();
 
         $this->renderTestEntity($id);
@@ -139,9 +147,10 @@ class DateTimeFieldTest extends WebTestBase {
     }
 
     // Verify that the plain formatter works.
-    $this->display_options['type'] = 'datetime_plain';
+    $this->displayOptions['type'] = 'datetime_plain';
+    $this->displayOptions['settings'] = array();
     entity_get_display($this->field->entity_type, $this->field->bundle, 'full')
-      ->setComponent($field_name, $this->display_options)
+      ->setComponent($field_name, $this->displayOptions)
       ->save();
     $expected = $date->format(DATETIME_DATE_STORAGE_FORMAT);
     $this->renderTestEntity($id);
@@ -186,9 +195,9 @@ class DateTimeFieldTest extends WebTestBase {
     foreach ($options as $setting => $values) {
       foreach ($values as $new_value) {
         // Update the entity display settings.
-        $this->display_options['settings'] = array($setting => $new_value);
+        $this->displayOptions['settings'] = array($setting => $new_value);
         entity_get_display($this->field->entity_type, $this->field->bundle, 'full')
-          ->setComponent($field_name, $this->display_options)
+          ->setComponent($field_name, $this->displayOptions)
           ->save();
 
         $this->renderTestEntity($id);
@@ -204,9 +213,10 @@ class DateTimeFieldTest extends WebTestBase {
     }
 
     // Verify that the plain formatter works.
-    $this->display_options['type'] = 'datetime_plain';
+    $this->displayOptions['type'] = 'datetime_plain';
+    $this->displayOptions['settings'] = array();
     entity_get_display($this->field->entity_type, $this->field->bundle, 'full')
-      ->setComponent($field_name, $this->display_options)
+      ->setComponent($field_name, $this->displayOptions)
       ->save();
     $expected = $date->format(DATETIME_DATETIME_STORAGE_FORMAT);
     $this->renderTestEntity($id);
@@ -283,7 +293,7 @@ class DateTimeFieldTest extends WebTestBase {
     $this->drupalCreateContentType(array('type' => 'date_content'));
 
     // Create a field storage with settings to validate.
-    $field_name = drupal_strtolower($this->randomMachineName());
+    $field_name = Unicode::strtolower($this->randomMachineName());
     $field_storage = entity_create('field_storage_config', array(
       'field_name' => $field_name,
       'entity_type' => 'node',
@@ -310,7 +320,7 @@ class DateTimeFieldTest extends WebTestBase {
     $this->assertFieldByName('default_value_input[default_date]', '', 'The relative default value is empty in instance settings page');
 
     // Check if default_date has been stored successfully.
-    $config_entity = $this->container->get('config.factory')->get('field.field.node.date_content.' . $field_name)->get();
+    $config_entity = $this->config('field.field.node.date_content.' . $field_name)->get();
     $this->assertEqual($config_entity['default_value'][0], array('default_date_type' => 'now', 'default_date' => 'now'), 'Default value has been stored successfully');
 
     // Clear field cache in order to avoid stale cache values.
@@ -343,7 +353,7 @@ class DateTimeFieldTest extends WebTestBase {
     $this->assertFieldByName('default_value_input[default_date]', '+90 days', 'The relative default value is displayed in instance settings page');
 
     // Check if default_date has been stored successfully.
-    $config_entity = $this->container->get('config.factory')->get('field.field.node.date_content.' . $field_name)->get();
+    $config_entity = $this->config('field.field.node.date_content.' . $field_name)->get();
     $this->assertEqual($config_entity['default_value'][0], array('default_date_type' => 'relative', 'default_date' => '+90 days'), 'Default value has been stored successfully');
 
     // Clear field cache in order to avoid stale cache values.
@@ -366,7 +376,7 @@ class DateTimeFieldTest extends WebTestBase {
     $this->assertFieldByName('default_value_input[default_date]', '', 'The relative default value is empty in instance settings page');
 
     // Check if default_date has been stored successfully.
-    $config_entity = $this->container->get('config.factory')->get('field.field.node.date_content.' . $field_name)->get();
+    $config_entity = $this->config('field.field.node.date_content.' . $field_name)->get();
     $this->assertTrue(empty($config_entity['default_value']), 'Empty default value has been stored successfully');
 
     // Clear field cache in order to avoid stale cache values.

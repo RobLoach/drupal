@@ -414,14 +414,6 @@ if ($settings['hash_salt']) {
 # $settings['allow_authorize_operations'] = FALSE;
 
 /**
- * Mixed-mode sessions:
- *
- * Set to TRUE to create both secure and insecure sessions when using HTTPS.
- * Defaults to FALSE.
- */
-# $settings['mixed_mode_sessions'] = TRUE;
-
-/**
  * Default mode for for directories and files written by Drupal.
  *
  * Value should be in PHP Octal Notation, with leading zero.
@@ -437,6 +429,21 @@ if ($settings['hash_salt']) {
  * the Drupal installation directory and be accessible over the web.
  */
 # $settings['file_public_path'] = 'sites/default/files';
+
+/**
+ * Private file path:
+ *
+ * A local file system path where private files will be stored. This directory
+ * must be absolute, outside of the the Drupal installation directory and not
+ * accessible over the web.
+ *
+ * Note: Caches need to be cleared when this value is changed to make the
+ * private:// stream wrapper available to the system.
+ *
+ * See http://drupal.org/documentation/modules/file for more information about
+ * securing private files.
+ */
+# $settings['file_private_path'] = '';
 
 /**
  * Session write interval:
@@ -584,21 +591,6 @@ ini_set('session.cookie_lifetime', 2000000);
 # $config['system.site']['name'] = 'My Drupal site';
 # $config['system.theme']['default'] = 'stark';
 # $config['user.settings']['anonymous'] = 'Visitor';
-
-/**
- * CSS/JS aggregated file gzip compression:
- *
- * By default, when CSS or JS aggregation and clean URLs are enabled Drupal will
- * store a gzip compressed (.gz) copy of the aggregated files. If this file is
- * available then rewrite rules in the default .htaccess file will serve these
- * files to browsers that accept gzip encoded content. This allows pages to load
- * faster for these users and has minimal impact on server load. If you are
- * using a webserver other than Apache httpd, or a caching reverse proxy that is
- * configured to cache and compress these files itself you may want to uncomment
- * one or both of the below lines, which will prevent gzip files being stored.
- */
-# $config['system.performance']['css']['gzip'] = FALSE;
-# $config['system.performance']['js']['gzip'] = FALSE;
 
 /**
  * Fast 404 pages:

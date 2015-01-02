@@ -45,7 +45,7 @@ class CacheTest extends UnitTestCase {
   }
 
   /**
-   * @covers validateTags
+   * @covers ::validateTags
    *
    * @dataProvider validateTagsProvider
    */
@@ -53,7 +53,8 @@ class CacheTest extends UnitTestCase {
     if ($expected_exception_message !== FALSE) {
       $this->setExpectedException('LogicException', $expected_exception_message);
     }
-    Cache::validateTags($tags);
+    // If it doesn't throw an exception, validateTags() returns NULL.
+    $this->assertNull(Cache::validateTags($tags));
   }
 
   /**
@@ -74,7 +75,7 @@ class CacheTest extends UnitTestCase {
   }
 
   /**
-   * @covers mergeTags
+   * @covers ::mergeTags
    *
    * @dataProvider mergeTagsProvider
    */
@@ -108,7 +109,7 @@ class CacheTest extends UnitTestCase {
   }
 
   /**
-   * @covers buildTags
+   * @covers ::buildTags
    *
    * @dataProvider buildTagsProvider
    */
@@ -117,7 +118,7 @@ class CacheTest extends UnitTestCase {
   }
 
   /**
-   * @covers deleteTags
+   * @covers ::deleteTags
    *
    * @expectedException \LogicException
    * @expectedExceptionMessage Cache tags must be strings, array given.
@@ -127,13 +128,13 @@ class CacheTest extends UnitTestCase {
   }
 
   /**
-   * @covers invalidateTags
+   * @covers ::invalidateTags
    *
    * @expectedException \LogicException
    * @expectedExceptionMessage Cache tags must be strings, array given.
    */
   public function testInvalidateTags() {
-    Cache::deleteTags(['node' => [2, 3, 5, 8, 13]]);
+    Cache::invalidateTags(['node' => [2, 3, 5, 8, 13]]);
   }
 
 }

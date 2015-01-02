@@ -8,6 +8,7 @@
 namespace Drupal\views_ui\Tests;
 
 use Drupal\Component\Utility\String;
+use Drupal\language\Entity\ConfigurableLanguage;
 use Drupal\views\Entity\View;
 use Drupal\views\Views;
 
@@ -88,69 +89,51 @@ class ViewEditTest extends UITestBase {
   }
 
   /**
-   * Tests the 'Other' options category on the views edit form.
+   * Tests the language options on the views edit form.
    */
-  public function testEditFormOtherOptions() {
-    // Test the Field language form.
-    $this->drupalGet('admin/structure/views/view/test_view');
-    $langcode_url = 'admin/structure/views/nojs/display/test_view/default/field_langcode';
-    $this->assertLinkByHref($langcode_url);
-    $this->assertLink(t('Language selected for !type', array('!type' => t('Content'))));
-    // Click the link and check the form before language is added.
-    $this->drupalGet($langcode_url);
-    $this->assertResponse(200);
-    $this->assertText(t("You don't have translatable entity types."));
-    // A node view should have language options.
-    $this->container->get('module_handler')->install(array('node', 'language'));
+  public function testEditFormLanguageOptions() {
+    // Language options should not exist without language module.
+    $test_views = array(
+      'test_view' => 'default',
+      'test_display' => 'page_1',
+    );
+    foreach ($test_views as $view_name => $display) {
+      $this->drupalGet('admin/structure/views/view/' . $view_name);
+      $this->assertResponse(200);
+      $langcode_url = 'admin/structure/views/nojs/display/' . $view_name . '/' . $display . '/field_langcode';
+      $this->assertNoLinkByHref($langcode_url);
+      $this->assertNoLink(t('Language selected for !type', array('!type' => t('Content'))));
+    }
+
+    // Make the site multilingual and test the options again.
+    $this->container->get('module_installer')->install(array('language'));
+    ConfigurableLanguage::createFromLangcode('hu')->save();
     $this->resetAll();
     $this->rebuildContainer();
 
-    $this->drupalGet('admin/structure/views/nojs/display/test_display/page_1/field_langcode');
-    $this->assertResponse(200);
-    $this->assertFieldByName('field_langcode', '***LANGUAGE_language_content***');
-    $this->assertFieldByName('field_langcode_add_to_query', TRUE);
-  }
+    // Language options should now exist with content language defaults.
+    foreach ($test_views as $view_name => $display) {
+      $this->drupalGet('admin/structure/views/view/' . $view_name);
+      $this->assertResponse(200);
+      $langcode_url = 'admin/structure/views/nojs/display/' . $view_name . '/' . $display . '/field_langcode';
+      if ($view_name == 'test_view') {
+        $this->assertNoLinkByHref($langcode_url);
+        $this->assertNoLink(t('Language selected for !type', array('!type' => t('Content'))));
+      }
+      else {
+        $this->assertLinkByHref($langcode_url);
+        $this->assertLink(t('Language selected for !type', array('!type' => t('Content'))));
+      }
 
-  /**
-   * Tests that plugins selected from the view edit form contain providers.
-   */
-  public function testPluginProviders() {
-    $plugin_data = array(
-      'access' => array(
-        'value' => 'test_static',
-        'provider' => 'views_test_data',
-      ),
-      'cache' => array(
-        'value' => 'time',
-        'provider' => 'views',
-      ),
-      'exposed_form' => array(
-        'value' => 'input_required',
-        'provider' => 'views',
-      ),
-      'pager' => array(
-        'value' => 'full',
-        'provider' => 'views',
-      ),
-      'row' => array(
-        'value' => 'test_row',
-        'provider' => 'views_test_data',
-      ),
-      'style' => array(
-        'value' => 'test_style',
-        'provider' => 'views_test_data',
-      ),
-    );
-
-    foreach ($plugin_data as $plugin_type => $plugin_options) {
-      $element_name = $plugin_type . '[type]';
-      // Save the plugin form, to change the plugin used.
-      $this->drupalPostForm("admin/structure/views/nojs/display/test_view/default/$plugin_type", array($element_name => $plugin_options['value']), t('Apply'));
-      $this->drupalPostForm('admin/structure/views/view/test_view', array(), t('Save'));
-      // Check the plugin provider.
-      $view = Views::getView('test_view');
-      $displays = $view->storage->get('display');
-      $this->assertIdentical($displays['default']['display_options'][$plugin_type]['provider'], $plugin_options['provider'], String::format('Expected provider found for @plugin.', array('@plugin' => $plugin_type)));
+      $this->drupalGet($langcode_url);
+      $this->assertResponse(200);
+      if ($view_name == 'test_view') {
+        $this->assertText(t("You don't have translatable entity types."));
+      }
+      else {
+        $this->assertFieldByName('field_langcode', '***LANGUAGE_language_content***');
+        $this->assertFieldByName('field_langcode_add_to_query', TRUE);
+      }
     }
   }
 

@@ -57,7 +57,7 @@ class EntityForm extends FormBase implements EntityFormInterface {
   /**
    * {@inheritdoc}
    */
-  public function getBaseFormID() {
+  public function getBaseFormId() {
     // Assign ENTITYTYPE_form as base form ID to invoke corresponding
     // hook_form_alter(), #validate, #submit, and #theme callbacks, but only if
     // it is different from the actual form ID, since callbacks would be invoked
@@ -226,7 +226,7 @@ class EntityForm extends FormBase implements EntityFormInterface {
     // @todo Remove this.
     // Execute legacy global validation handlers.
     $form_state->setValidateHandlers([]);
-    form_execute_handlers('validate', $form, $form_state);
+    \Drupal::service('form_validator')->executeValidateHandlers($form, $form_state);
   }
 
   /**
@@ -291,10 +291,17 @@ class EntityForm extends FormBase implements EntityFormInterface {
    *   The current state of the form.
    */
   protected function copyFormValuesToEntity(EntityInterface $entity, array $form, FormStateInterface $form_state) {
+    $values = $form_state->getValues();
+
+    if ($this->entity instanceof EntityWithPluginCollectionInterface) {
+      // Do not manually update values represented by plugin collections.
+      $values = array_diff_key($values, $this->entity->getPluginCollections());
+    }
+
     // @todo: This relies on a method that only exists for config and content
     //   entities, in a different way. Consider moving this logic to a config
     //   entity specific implementation.
-    foreach ($form_state->getValues() as $key => $value) {
+    foreach ($values as $key => $value) {
       $entity->set($key, $value);
     }
   }

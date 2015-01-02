@@ -7,6 +7,7 @@
 
 namespace Drupal\field\Tests\Number;
 
+use Drupal\Component\Utility\Unicode;
 use Drupal\simpletest\WebTestBase;
 
 /**
@@ -42,13 +43,13 @@ class NumberFieldTest extends WebTestBase {
    */
   function testNumberDecimalField() {
     // Create a field with settings to validate.
-    $field_name = drupal_strtolower($this->randomMachineName());
+    $field_name = Unicode::strtolower($this->randomMachineName());
     entity_create('field_storage_config', array(
       'field_name' => $field_name,
       'entity_type' => 'entity_test',
       'type' => 'decimal',
       'settings' => array(
-        'precision' => 8, 'scale' => 4, 'decimal_separator' => '.',
+        'precision' => 8, 'scale' => 4,
       )
     ))->save();
     entity_create('field_config', array(
@@ -132,12 +133,13 @@ class NumberFieldTest extends WebTestBase {
     $maximum = rand(2000, 4000);
 
     // Create a field with settings to validate.
-    $field_name = drupal_strtolower($this->randomMachineName());
-    entity_create('field_storage_config', array(
+    $field_name = Unicode::strtolower($this->randomMachineName());
+    $storage = entity_create('field_storage_config', array(
       'field_name' => $field_name,
       'entity_type' => 'entity_test',
       'type' => 'integer',
-    ))->save();
+    ));
+    $storage->save();
 
     entity_create('field_config', array(
       'field_name' => $field_name,
@@ -161,6 +163,22 @@ class NumberFieldTest extends WebTestBase {
         'type' => 'number_integer',
       ))
       ->save();
+
+    // Check the storage schema.
+    $expected = array(
+      'columns' => array(
+        'value' => array(
+          'type' => 'int',
+          'not null' => FALSE,
+          'unsigned' => '',
+          'size' => 'normal'
+        ),
+      ),
+      'unique keys' => array(),
+      'indexes' => array(),
+      'foreign keys' => array()
+    );
+    $this->assertEqual($storage->getSchema(), $expected);
 
     // Display creation form.
     $this->drupalGet('entity_test/add');
@@ -226,7 +244,7 @@ class NumberFieldTest extends WebTestBase {
   */
   function testNumberFloatField() {
     // Create a field with settings to validate.
-    $field_name = drupal_strtolower($this->randomMachineName());
+    $field_name = Unicode::strtolower($this->randomMachineName());
     entity_create('field_storage_config', array(
       'field_name' => $field_name,
       'entity_type' => 'entity_test',
@@ -311,9 +329,9 @@ class NumberFieldTest extends WebTestBase {
    * Test default formatter behavior
    */
   function testNumberFormatter() {
-    $type = drupal_strtolower($this->randomMachineName());
-    $float_field = drupal_strtolower($this->randomMachineName());
-    $integer_field = drupal_strtolower($this->randomMachineName());
+    $type = Unicode::strtolower($this->randomMachineName());
+    $float_field = Unicode::strtolower($this->randomMachineName());
+    $integer_field = Unicode::strtolower($this->randomMachineName());
     $thousand_separators = array('', '.', ',', ' ', chr(8201), "'");
     $decimal_separators = array('.', ',');
     $prefix = $this->randomMachineName();

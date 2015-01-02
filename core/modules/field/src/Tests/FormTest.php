@@ -103,7 +103,7 @@ class FormTest extends FieldTestBase {
     $this->drupalGet('entity_test/add');
 
     // Create token value expected for description.
-    $token_description = String::checkPlain(\Drupal::config('system.site')->get('name')) . '_description';
+    $token_description = String::checkPlain($this->config('system.site')->get('name')) . '_description';
     $this->assertText($token_description, 'Token replacement for description is displayed');
     $this->assertFieldByName("{$field_name}[0][value]", '', 'Widget is displayed');
     $this->assertNoField("{$field_name}[1][value]", 'No extraneous widget is displayed');
@@ -587,7 +587,7 @@ class FormTest extends FieldTestBase {
 
     // Update the field to remove the default value, and switch to the default
     // widget.
-    $this->field->default_value = NULL;
+    $this->field->default_value = array();
     $this->field->save();
     entity_get_form_display($entity_type, $this->field->bundle, 'default')
       ->setComponent($this->field->getName(), array(

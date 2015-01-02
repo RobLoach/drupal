@@ -8,31 +8,26 @@
  * API pattern.
  */
 
+use Drupal\Component\Utility\Html;
 use Drupal\Component\Utility\Xss;
 use Drupal\Core\Access\AccessResult;
-use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Language\LanguageInterface;
-use Drupal\Core\Render\Element;
-use Drupal\Core\Routing\RouteMatchInterface;
-use Drupal\Core\Url;
-use Symfony\Component\HttpFoundation\Response;
-use Drupal\Core\Database\StatementInterface;
 use Drupal\Core\Database\Query\AlterableInterface;
 use Drupal\Core\Database\Query\SelectInterface;
-use Drupal\field\Entity\FieldStorageConfig;
+use Drupal\Core\Database\StatementInterface;
+use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Render\Element;
+use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\Core\Session\AccountInterface;
+use Drupal\Core\Template\Attribute;
+use Drupal\Core\Url;
 use Drupal\field\Entity\FieldConfig;
+use Drupal\field\Entity\FieldStorageConfig;
+use Drupal\language\ConfigurableLanguageInterface;
 use Drupal\node\Entity\Node;
 use Drupal\node\Entity\NodeType;
-use Drupal\node\NodeTypeInterface;
 use Drupal\node\NodeInterface;
-use Drupal\Core\Entity\EntityInterface;
-use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
-use Drupal\Core\Entity\Display\EntityFormDisplayInterface;
-use Drupal\Core\Template\Attribute;
-use Drupal\file\Entity\File;
-use Drupal\language\Entity\ConfigurableLanguage;
-use Drupal\block\Entity\Block;
-use Drupal\Core\Session\AccountInterface;
+use Drupal\node\NodeTypeInterface;
 
 /**
  * Denotes that the node is not published.
@@ -121,7 +116,7 @@ function node_help($route_name, RouteMatchInterface $route_match) {
 
     case 'entity.node.edit_form':
       $node = $route_match->getParameter('node');
-      $type = $node->getType();
+      $type = NodeType::load($node->getType());
       return (!empty($type->help) ? Xss::filterAdmin($type->help) : '');
 
     case 'node.add':
@@ -137,10 +132,6 @@ function node_theme() {
   return array(
     'node' => array(
       'render element' => 'elements',
-    ),
-    'node_search_admin' => array(
-      'render element' => 'form',
-      'function' => 'theme_node_search_admin',
     ),
     'node_add_list' => array(
       'variables' => array('content' => NULL),
@@ -328,14 +319,6 @@ function node_add_body_field(NodeTypeInterface $type, $label = 'Body') {
    // Add or remove the body field, as needed.
   $field_storage = FieldStorageConfig::loadByName('node', 'body');
   $field = FieldConfig::loadByName('node', $type->id(), 'body');
-  if (empty($field_storage)) {
-    $field_storage = entity_create('field_storage_config', array(
-      'field_name' => 'body',
-      'entity_type' => 'node',
-      'type' => 'text_with_summary',
-    ));
-    $field_storage->save();
-  }
   if (empty($field)) {
     $field = entity_create('field_config', array(
       'field_storage' => $field_storage,
@@ -381,30 +364,8 @@ function node_add_body_field(NodeTypeInterface $type, $label = 'Body') {
  */
 function node_entity_extra_field_info() {
   $extra = array();
-  $module_language_enabled = \Drupal::moduleHandler()->moduleExists('language');
   $description = t('Node module element');
-
   foreach (node_type_get_types() as $bundle) {
-    // Add the 'language' select if Language module is enabled and the bundle
-    // has multilingual support.
-    // Visibility of the ordering of the language selector is the same as on the
-    // node/add form.
-    if ($module_language_enabled) {
-      $configuration = language_get_default_configuration('node', $bundle->type);
-      if ($configuration['language_show']) {
-        $extra['node'][$bundle->type]['form']['langcode'] = array(
-          'label' => t('Language'),
-          'description' => $description,
-          'weight' => 0,
-        );
-      }
-    }
-    $extra['node'][$bundle->type]['display']['langcode'] = array(
-      'label' => t('Language'),
-      'description' => $description,
-      'weight' => 0,
-      'visible' => FALSE,
-    );
     $extra['node'][$bundle->type]['display']['links'] = array(
       'label' => t('Links'),
       'description' => $description,
@@ -531,7 +492,7 @@ function node_is_page(NodeInterface $node) {
 function node_preprocess_html(&$variables) {
   // If on an individual node page, add the node type to body classes.
   if (($node = \Drupal::routeMatch()->getParameter('node')) && $node instanceof NodeInterface) {
-    $variables['attributes']['class'][] = drupal_html_class('node--type-' . $node->getType());
+    $variables['attributes']['class'][] = Html::getClass('node--type-' . $node->getType());
   }
 }
 
@@ -570,9 +531,9 @@ function node_theme_suggestions_node(array $variables) {
  *
  * Default template: node.html.twig.
  *
- * Most themes utilize their own copy of node.html.twig. The default is located
- * inside "/core/modules/node/templates/node.html.twig". Look in there for the full
- * list of variables.
+ * Most themes use their own copy of node.html.twig. The default is located
+ * inside "/core/modules/node/templates/node.html.twig". Look in there for the
+ * full list of variables.
  *
  * @param array $variables
  *   An associative array containing:
@@ -587,9 +548,9 @@ function template_preprocess_node(&$variables) {
   $variables['node'] = $variables['elements']['#node'];
   /** @var \Drupal\node\NodeInterface $node */
   $node = $variables['node'];
-  $variables['date'] = drupal_render($variables['elements']['created'], TRUE);
+  $variables['date'] = drupal_render($variables['elements']['created']);
   unset($variables['elements']['created']);
-  $variables['author_name'] = drupal_render($variables['elements']['uid'], TRUE);
+  $variables['author_name'] = drupal_render($variables['elements']['uid']);
   unset($variables['elements']['uid']);
 
   $variables['url'] = $node->url('canonical', array(
@@ -738,40 +699,6 @@ function node_user_predelete($account) {
 }
 
 /**
- * Returns HTML for the content ranking part of the search settings admin page.
- *
- * @param $variables
- *   An associative array containing:
- *   - form: A render element representing the form.
- *
- * @see node_search_admin()
- * @ingroup themeable
- */
-function theme_node_search_admin($variables) {
-  $form = $variables['form'];
-
-  $output = drupal_render($form['info']);
-
-  $header = array(t('Factor'), t('Influence'));
-  foreach (Element::children($form['factors']) as $key) {
-    $row = array();
-    $row[] = $form['factors'][$key]['#title'];
-    $form['factors'][$key]['#title_display'] = 'invisible';
-    $row[] = drupal_render($form['factors'][$key]);
-    $rows[] = $row;
-  }
-  $table = array(
-    '#type' => 'table',
-    '#header' => $header,
-    '#rows' => $rows,
-  );
-  $output .= drupal_render($table);
-
-  $output .= drupal_render_children($form);
-  return $output;
-}
-
-/**
  * Title callback: Displays the node's title.
  *
  * @param \Drupal\node\NodeInterface $node
@@ -843,7 +770,7 @@ function node_get_recent($number = 10) {
     ->addTag('node_access')
     ->execute();
 
-  $nodes = node_load_multiple($nids);
+  $nodes = Node::loadMultiple($nids);
 
   return $nodes ? $nodes : array();
 }
@@ -870,7 +797,7 @@ function node_view(NodeInterface $node, $view_mode = 'full', $langcode = NULL) {
  * Constructs a drupal_render() style array from an array of loaded nodes.
  *
  * @param $nodes
- *   An array of nodes as returned by node_load_multiple().
+ *   An array of nodes as returned by Node::loadMultiple().
  * @param $view_mode
  *   (optional) View mode, e.g., 'full', 'teaser'... Defaults to 'teaser.'
  * @param $langcode
@@ -1236,6 +1163,7 @@ function node_access_needs_rebuild($rebuild = NULL) {
  * @see node_access_needs_rebuild()
  */
 function node_access_rebuild($batch_mode = FALSE) {
+  $node_storage = \Drupal::entityManager()->getStorage('node');
   $access_control_handler = \Drupal::entityManager()->getAccessControlHandler('node');
   $access_control_handler->deleteGrants();
   // Only recalculate if the site is using a node_access module.
@@ -1260,7 +1188,8 @@ function node_access_rebuild($batch_mode = FALSE) {
       $entity_query->sort('nid', 'DESC');
       $nids = $entity_query->execute();
       foreach ($nids as $nid) {
-        $node = node_load($nid, TRUE);
+        $node_storage->resetCache(array($nid));
+        $node = Node::load($nid);
         // To preserve database integrity, only write grants if the node
         // loads successfully.
         if (!empty($node)) {
@@ -1291,6 +1220,7 @@ function node_access_rebuild($batch_mode = FALSE) {
  *   An array of contextual key/value information for rebuild batch process.
  */
 function _node_access_rebuild_batch_operation(&$context) {
+  $node_storage = $this->container->get('entity.manager')->getStorage('node');
   if (empty($context['sandbox'])) {
     // Initiate multistep processing.
     $context['sandbox']['progress'] = 0;
@@ -1305,7 +1235,8 @@ function _node_access_rebuild_batch_operation(&$context) {
     ->sort('nid', 'ASC')
     ->range(0, $limit)
     ->execute();
-  $nodes = node_load_multiple($nids, TRUE);
+  $node_storage->resetCache($nids);
+  $nodes = Node::loadMultiple($nids);
   foreach ($nodes as $nid => $node) {
     // To preserve database integrity, only write grants if the node
     // loads successfully.
@@ -1400,7 +1331,7 @@ function node_modules_uninstalled($modules) {
 /**
  * Implements hook_ENTITY_TYPE_delete() for 'configurable_language'.
  */
-function node_configurable_language_delete(ConfigurableLanguage $language) {
+function node_configurable_language_delete(ConfigurableLanguageInterface $language) {
   // On nodes with this language, unset the language.
   \Drupal::entityManager()->getStorage('node')->clearRevisionsLanguage($language);
 }

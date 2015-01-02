@@ -7,15 +7,15 @@
 
 namespace Drupal\contact\Tests;
 
-use Drupal\config\Tests\SchemaCheckTestTrait;
+use Drupal\Component\Utility\Unicode;
 use Drupal\contact\Entity\Message;
 
 /**
  * Tests storing contact messages.
+ *
+ * @group contact
  */
 class ContactStorageTest extends ContactSitewideTest {
-
-  use SchemaCheckTestTrait;
 
   /**
    * Modules to enable.
@@ -27,15 +27,8 @@ class ContactStorageTest extends ContactSitewideTest {
     'contact',
     'field_ui',
     'contact_storage_test',
+    'contact_test',
   );
-
-  public static function getInfo() {
-    return array(
-      'name' => 'Contact Storage',
-      'description' => 'Tests that contact messages can be stored.',
-      'group' => 'Contact',
-    );
-  }
 
   /**
    * Tests configuration options and the site-wide contact form.
@@ -52,7 +45,7 @@ class ContactStorageTest extends ContactSitewideTest {
     $this->drupalLogin($admin_user);
     // Create first valid contact form.
     $mail = 'simpletest@example.com';
-    $this->addContactForm($id = drupal_strtolower($this->randomMachineName(16)), $label = $this->randomMachineName(16), implode(',', array($mail)), '', TRUE, [
+    $this->addContactForm($id = Unicode::strtolower($this->randomMachineName(16)), $label = $this->randomMachineName(16), implode(',', array($mail)), '', TRUE, [
       'send_a_pony' => 1,
     ]);
     $this->assertRaw(t('Contact form %label has been added.', array('%label' => $label)));
@@ -75,9 +68,8 @@ class ContactStorageTest extends ContactSitewideTest {
     $this->assertEqual($message->getSubject(), $subject);
     $this->assertEqual($message->getSenderMail(), $mail);
 
-    $config = \Drupal::config("contact.form.$id");
+    $config = $this->config("contact.form.$id");
     $this->assertEqual($config->get('id'), $id);
-    $this->assertConfigSchema(\Drupal::service('config.typed'), $config->getName(), $config->get());
   }
 
 }

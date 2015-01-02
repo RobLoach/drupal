@@ -27,7 +27,7 @@ class PageCacheTagsIntegrationTest extends WebTestBase {
   protected function setUp() {
     parent::setUp();
 
-    $config = \Drupal::config('system.performance');
+    $config = $this->config('system.performance');
     $config->set('cache.page.use_internal', 1);
     $config->set('cache.page.max_age', 300);
     $config->save();
@@ -150,7 +150,7 @@ class PageCacheTagsIntegrationTest extends WebTestBase {
     $this->assertEqual($this->drupalGetHeader('X-Drupal-Cache'), 'HIT');
     $this->assertIdentical($actual_tags, $expected_tags);
     $cid_parts = array(_url($path, array('absolute' => TRUE)), 'html');
-    $cid = sha1(implode(':', $cid_parts));
+    $cid = implode(':', $cid_parts);
     $cache_entry = \Drupal::cache('render')->get($cid);
     sort($cache_entry->tags);
     $this->assertEqual($cache_entry->tags, $expected_tags);

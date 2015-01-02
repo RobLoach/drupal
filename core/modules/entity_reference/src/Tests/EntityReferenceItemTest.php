@@ -7,6 +7,7 @@
 
 namespace Drupal\entity_reference\Tests;
 
+use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Field\FieldItemInterface;
 use Drupal\Core\Language\LanguageInterface;
@@ -51,7 +52,7 @@ class EntityReferenceItemTest extends FieldUnitTestBase {
 
     $this->vocabulary = entity_create('taxonomy_vocabulary', array(
       'name' => $this->randomMachineName(),
-      'vid' => drupal_strtolower($this->randomMachineName()),
+      'vid' => Unicode::strtolower($this->randomMachineName()),
       'langcode' => LanguageInterface::LANGCODE_NOT_SPECIFIED,
     ));
     $this->vocabulary->save();
@@ -104,9 +105,32 @@ class EntityReferenceItemTest extends FieldUnitTestBase {
     ));
     $term2->save();
 
-    $entity->field_test_taxonomy_term->target_id = $term2->id();
+    // Test all the possible ways of assigning a value.
+    $entity->field_test_taxonomy_term->target_id = $term->id();
+    $this->assertEqual($entity->field_test_taxonomy_term->entity->id(), $term->id());
+    $this->assertEqual($entity->field_test_taxonomy_term->entity->getName(), $term->getName());
+
+    $entity->field_test_taxonomy_term = [['target_id' => $term2->id()]];
     $this->assertEqual($entity->field_test_taxonomy_term->entity->id(), $term2->id());
     $this->assertEqual($entity->field_test_taxonomy_term->entity->getName(), $term2->getName());
+
+    // Test value assignment via the computed 'entity' property.
+    $entity->field_test_taxonomy_term->entity = $term;
+    $this->assertEqual($entity->field_test_taxonomy_term->target_id, $term->id());
+    $this->assertEqual($entity->field_test_taxonomy_term->entity->getName(), $term->getName());
+
+    $entity->field_test_taxonomy_term = [['entity' => $term2]];
+    $this->assertEqual($entity->field_test_taxonomy_term->target_id, $term2->id());
+    $this->assertEqual($entity->field_test_taxonomy_term->entity->getName(), $term2->getName());
+
+    // Test assigning an invalid item throws an exception.
+    try {
+      $entity->field_test_taxonomy_term = ['target_id' => 'invalid', 'entity' => $term2];
+      $this->fail('Assigning an invalid item throws an exception.');
+    }
+    catch (\InvalidArgumentException $e) {
+      $this->pass('Assigning an invalid item throws an exception.');
+    }
 
     // Delete terms so we have nothing to reference and try again
     $term->delete();
@@ -152,7 +176,7 @@ class EntityReferenceItemTest extends FieldUnitTestBase {
     // Make sure the computed term reflects updates to the term id.
     $vocabulary2 = entity_create('taxonomy_vocabulary', array(
       'name' => $this->randomMachineName(),
-      'vid' => drupal_strtolower($this->randomMachineName()),
+      'vid' => Unicode::strtolower($this->randomMachineName()),
       'langcode' => LanguageInterface::LANGCODE_NOT_SPECIFIED,
     ));
     $vocabulary2->save();

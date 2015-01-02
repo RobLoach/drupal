@@ -186,7 +186,7 @@
  * // Find out when cron was last run; the key is 'system.cron_last'.
  * $time = $state->get('system.cron_last');
  * // Set the cron run time to the current request time.
- * $state->set('system_cron_last', REQUEST_TIME);
+ * $state->set('system.cron_last', REQUEST_TIME);
  * @endcode
  *
  * For more on the State API, see https://drupal.org/developing/api/8/state
@@ -321,6 +321,31 @@
  *   Configuration entity classes expose dependencies by overriding the
  *   \Drupal\Core\Config\Entity\ConfigEntityInterface::calculateDependencies()
  *   method.
+ * - On routes for paths staring with '\admin' with configuration entity
+ *   placeholders, configuration entities are normally loaded in their original
+ *   language, not translated. This is usually desirable, because most admin
+ *   paths are for editing configuration, and you need that to be in the source
+ *   language. If for some reason you need to have your configuration entity
+ *   loaded in the currently-selected language on an admin path (for instance,
+ *   if you go to example.com/es/admin/your_path and you need the entity to be
+ *   in Spanish), then you can add a 'use_current_language' parameter option to
+ *   your route. Here's an example using the configurable_language config
+ *   entity:
+ *   @code
+ *   mymodule.myroute:
+ *     path: '/admin/mypath/{configurable_language}'
+ *     defaults:
+ *       _controller: '\Drupal\mymodule\MyController::myMethod'
+ *     options:
+ *       parameters:
+ *         configurable_language:
+ *           type: entity:configurable_language
+ *           use_current_language: 'TRUE'
+ *   @endcode
+ *   With the route defined this way, the $configurable_language parameter to
+ *   your controller method will come in translated to the current language.
+ *   Without the parameter options section, it would be in the original
+ *   language, untranslated.
  *
  * @see i18n
  *
@@ -483,7 +508,7 @@
  * This also is the case when you define your own entity types: you'll get the
  * exact same cache tag invalidation as any of the built-in entity types, with
  * the ability to override any of the default behavior if needed.
- * See \Drupal\Core\Entity\EntityInterface::getCacheTag(),
+ * See \Drupal\Core\Entity\EntityInterface::getCacheTags(),
  * \Drupal\Core\Entity\EntityTypeInterface::getListCacheTags(),
  * \Drupal\Core\Entity\Entity::invalidateTagsOnSave() and
  * \Drupal\Core\Entity\Entity::invalidateTagsOnDelete().
@@ -734,28 +759,8 @@
  * \Drupal\Core\CoreServiceProvider class, but this is less common for modules.
  *
  * @section sec_tags Service tags
- * Some services have tags, which are defined in the service definition. Tags
- * are used to define a group of related services, or to specify some aspect of
- * how the service behaves. Typically, if you tag a service, your service class
- * must also implement a corresponding interface. Some common examples:
- * - access_check: Indicates a route access checking service; see the
- *   @link menu Menu and routing system topic @endlink for more information.
- * - cache.bin: Indicates a cache bin service; see the
- *   @link cache Cache topic @endlink for more information.
- * - event_subscriber: Indicates an event subscriber service. Event subscribers
- *   can be used for dynamic routing and route altering; see the
- *   @link menu Menu and routing system topic @endlink for more information.
- *   They can also be used for other purposes; see
- *   http://symfony.com/doc/current/cookbook/doctrine/event_listeners_subscribers.html
- *   for more information.
- * - needs_destruction: Indicates that a destruct() method needs to be called
- *   at the end of a request to finalize operations, if this service was
- *   instantiated.
- *
- * Creating a tag for a service does not do anything on its own, but tags
- * can be discovered or queried in a compiler pass when the container is built,
- * and a corresponding action can be taken. See
- * \Drupal\Core\CoreServiceProvider::register() for an example.
+ * Some services have tags, which are defined in the service definition. See
+ * @link service_tag Service Tags @endlink for usage.
  *
  * @section sec_injection Overriding the default service class
  * Modules can override the default classes used for services. Here are the
@@ -1054,7 +1059,7 @@
  * - Plugin mapping: Allows a plugin class to map a configuration string to an
  *   instance, and have the plugin automatically instantiated without writing
  *   additional code.
- * - Plugin bags: Provide a way to lazily instantiate a set of plugin
+ * - Plugin collections: Provide a way to lazily instantiate a set of plugin
  *   instances from a single plugin definition.
  *
  * There are several things a module developer may need to do with plugins:
@@ -1094,8 +1099,8 @@
  *   instantiate plugins. See @ref sub_manager below.
  * - Use the plugin manager to instantiate plugins. Call methods on your plugin
  *   interface to perform the tasks of your plugin type.
- * - (optional) If appropriate, define a plugin bag. See @ref sub_bag below
- *   for more information.
+ * - (optional) If appropriate, define a plugin collection. See @ref
+ *    sub_collection below for more information.
  *
  * @subsection sub_discovery Plugin discovery
  * Plugin discovery is the process your plugin manager uses to discover the
@@ -1155,22 +1160,22 @@
  *   configuration schema and possibly a configuration entity type. See the
  *   @link config_api Configuration API topic @endlink for more information.
  *
- * @subsection sub_bag Defining a plugin bag
+ * @subsection sub_collection Defining a plugin collection
  * Some configurable plugin types allow administrators to create zero or more
  * instances of each plugin, each with its own configuration. For example,
  * a single block plugin can be configured several times, to display in
  * different regions of a theme, with different visibility settings, a
  * different title, or other plugin-specific settings. To make this possible,
- * a plugin type can make use of what's known as a plugin bag.
+ * a plugin type can make use of what's known as a plugin collection.
  *
- * A plugin bag is a class that extends \Drupal\Component\Plugin\PluginBag or
- * one of its subclasses; there are several examples in Drupal Core. If your
- * plugin type uses a plugin bag, it will usually also have a configuration
- * entity, and the entity class should implement
- * \Drupal\Core\Entity\EntityWithPluginBagsInterface. Again,
- * there are several examples in Drupal Core; see also the
- * @link config_api Configuration API topic @endlink for more information about
- * configuration entities.
+ * A plugin collection is a class that extends
+ * \Drupal\Component\Plugin\LazyPluginCollection or one of its subclasses; there
+ * are several examples in Drupal Core. If your plugin type uses a plugin
+ * collection, it will usually also have a configuration entity, and the entity
+ * class should implement
+ * \Drupal\Core\Entity\EntityWithPluginCollectionInterface. Again, there are
+ * several examples in Drupal Core; see also the @link config_api Configuration
+ * API topic @endlink for more information about configuration entities.
  *
  * @section sec_create Creating a plugin of an existing type
  * Assuming the plugin type uses annotation-based discovery, in order to create
@@ -1285,7 +1290,6 @@
  * @see common.inc
  * @see file
  * @see format
- * @see mail.inc
  * @see php_wrappers
  * @see sanitization
  * @see transliteration
@@ -1535,13 +1539,13 @@
  * would be an in-memory queue backend which might lose items if it crashes.
  * However, such a backend would be able to deal with significantly more writes
  * than a reliable queue and for many tasks this is more important. See
- * aggregator_cron() for an example of how to effectively utilize a
- * non-reliable queue. Another example is doing Twitter statistics -- the small
- * possibility of losing a few items is insignificant next to power of the
- * queue being able to keep up with writes. As described in the processing
- * section, regardless of the queue being reliable or not, the processing code
- * should be aware that an item might be handed over for processing more than
- * once (because the processing code might time out before it finishes).
+ * aggregator_cron() for an example of how to effectively use a non-reliable
+ * queue. Another example is doing Twitter statistics -- the small possibility
+ * of losing a few items is insignificant next to power of the queue being able
+ * to keep up with writes. As described in the processing section, regardless
+ * of the queue being reliable or not, the processing code should be aware that
+ * an item might be handed over for processing more than once (because the
+ * processing code might time out before it finishes).
  * @}
  */
 
@@ -1772,4 +1776,39 @@ function hook_display_variant_plugin_alter(array &$definitions) {
 
 /**
  * @} End of "defgroup ajax".
+ */
+
+/**
+ * @defgroup service_tag Service Tags
+ * @{
+ * Service tags overview
+ *
+ * Some services have tags, which are defined in the service definition. Tags
+ * are used to define a group of related services, or to specify some aspect of
+ * how the service behaves. Typically, if you tag a service, your service class
+ * must also implement a corresponding interface. Some common examples:
+ * - access_check: Indicates a route access checking service; see the
+ *   @link menu Menu and routing system topic @endlink for more information.
+ * - cache.bin: Indicates a cache bin service; see the
+ *   @link cache Cache topic @endlink for more information.
+ * - event_subscriber: Indicates an event subscriber service. Event subscribers
+ *   can be used for dynamic routing and route altering; see the
+ *   @link menu Menu and routing system topic @endlink for more information.
+ *   They can also be used for other purposes; see
+ *   http://symfony.com/doc/current/cookbook/doctrine/event_listeners_subscribers.html
+ *   for more information.
+ * - needs_destruction: Indicates that a destruct() method needs to be called
+ *   at the end of a request to finalize operations, if this service was
+ *   instantiated.
+ *
+ * Creating a tag for a service does not do anything on its own, but tags
+ * can be discovered or queried in a compiler pass when the container is built,
+ * and a corresponding action can be taken. See
+ * \Drupal\Core\Render\MainContent\MainContentRenderersPass for an example of
+ * finding tagged services.
+ *
+ * See @link container Services and Dependency Injection Container @endlink for
+ * information on services and the dependency injection container.
+ *
+ * @}
  */

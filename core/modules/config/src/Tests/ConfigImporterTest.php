@@ -11,14 +11,14 @@ use Drupal\Component\Utility\String;
 use Drupal\Core\Config\ConfigImporter;
 use Drupal\Core\Config\ConfigImporterException;
 use Drupal\Core\Config\StorageComparer;
-use Drupal\simpletest\DrupalUnitTestBase;
+use Drupal\simpletest\KernelTestBase;
 
 /**
  * Tests importing configuration from files into active configuration.
  *
  * @group config
  */
-class ConfigImporterTest extends DrupalUnitTestBase {
+class ConfigImporterTest extends KernelTestBase {
 
   /**
    * Config Importer object used for testing.
@@ -58,6 +58,7 @@ class ConfigImporterTest extends DrupalUnitTestBase {
       $this->container->get('lock'),
       $this->container->get('config.typed'),
       $this->container->get('module_handler'),
+      $this->container->get('module_installer'),
       $this->container->get('theme_handler'),
       $this->container->get('string_translation')
     );
@@ -70,10 +71,10 @@ class ConfigImporterTest extends DrupalUnitTestBase {
     $dynamic_name = 'config_test.dynamic.dotted.default';
 
     // Verify the default configuration values exist.
-    $config = \Drupal::config($dynamic_name);
+    $config = $this->config($dynamic_name);
     $this->assertIdentical($config->get('id'), 'dotted.default');
 
-    // Verify that a bare \Drupal::config() does not involve module APIs.
+    // Verify that a bare $this->config() does not involve module APIs.
     $this->assertFalse(isset($GLOBALS['hook_config_test']));
   }
 
@@ -98,7 +99,7 @@ class ConfigImporterTest extends DrupalUnitTestBase {
   function testSiteUuidValidate() {
     $staging = \Drupal::service('config.storage.staging');
     // Create updated configuration object.
-    $config_data = \Drupal::config('system.site')->get();
+    $config_data = $this->config('system.site')->get();
     // Generate a new site UUID.
     $config_data['uuid'] = \Drupal::service('uuid')->generate();
     $staging->write('system.site', $config_data);
@@ -123,7 +124,7 @@ class ConfigImporterTest extends DrupalUnitTestBase {
     $staging = $this->container->get('config.storage.staging');
 
     // Verify the default configuration values exist.
-    $config = \Drupal::config($dynamic_name);
+    $config = $this->config($dynamic_name);
     $this->assertIdentical($config->get('id'), 'dotted.default');
 
     // Delete the file from the staging directory.
@@ -135,7 +136,7 @@ class ConfigImporterTest extends DrupalUnitTestBase {
     // Verify the file has been removed.
     $this->assertIdentical($storage->read($dynamic_name), FALSE);
 
-    $config = \Drupal::config($dynamic_name);
+    $config = $this->config($dynamic_name);
     $this->assertIdentical($config->get('id'), NULL);
 
     // Verify that appropriate module API hooks have been invoked.
@@ -172,7 +173,6 @@ class ConfigImporterTest extends DrupalUnitTestBase {
       'label' => 'New',
       'weight' => 0,
       'style' => '',
-      'test_dependencies' => array(),
       'protected_property' => '',
     );
     $staging->write($dynamic_name, $original_dynamic_data);
@@ -183,7 +183,7 @@ class ConfigImporterTest extends DrupalUnitTestBase {
     $this->configImporter->reset()->import();
 
     // Verify the values appeared.
-    $config = \Drupal::config($dynamic_name);
+    $config = $this->config($dynamic_name);
     $this->assertIdentical($config->get('label'), $original_dynamic_data['label']);
 
     // Verify that appropriate module API hooks have been invoked.
@@ -227,7 +227,7 @@ class ConfigImporterTest extends DrupalUnitTestBase {
       'uuid' => $uuid->generate(),
       // Add a dependency on primary, to ensure that is synced first.
       'dependencies' => array(
-        'entity' => array($name_primary),
+        'config' => array($name_primary),
       )
     );
     $staging->write($name_secondary, $values_secondary);
@@ -266,7 +266,7 @@ class ConfigImporterTest extends DrupalUnitTestBase {
       'uuid' => $uuid->generate(),
       // Add a dependency on secondary, so that is synced first.
       'dependencies' => array(
-        'entity' => array($name_secondary),
+        'config' => array($name_secondary),
       )
     );
     $staging->write($name_primary, $values_primary);
@@ -324,7 +324,7 @@ class ConfigImporterTest extends DrupalUnitTestBase {
       'uuid' => $uuid->generate(),
       // Add a dependency on deleter, to make sure that is synced first.
       'dependencies' => array(
-        'entity' => array($name_deleter),
+        'config' => array($name_deleter),
       )
     );
     $storage->write($name_deletee, $values_deletee);
@@ -340,7 +340,7 @@ class ConfigImporterTest extends DrupalUnitTestBase {
       // Add a dependency on deleter, to make sure that is synced first. This
       // will also be synced after the deletee due to alphabetical ordering.
       'dependencies' => array(
-        'entity' => array($name_deleter),
+        'config' => array($name_deleter),
       )
     );
     $storage->write($name_other, $values_other);
@@ -396,7 +396,7 @@ class ConfigImporterTest extends DrupalUnitTestBase {
       'uuid' => $uuid->generate(),
       // Add a dependency on deletee, to make sure that is synced first.
       'dependencies' => array(
-        'entity' => array($name_deletee),
+        'config' => array($name_deletee),
       ),
     );
     $storage->write($name_deleter, $values_deleter);
@@ -445,7 +445,7 @@ class ConfigImporterTest extends DrupalUnitTestBase {
       'uuid' => $uuid->generate(),
       // Add a dependency on deletee, to make sure this delete is synced first.
       'dependencies' => array(
-        'entity' => array($name_deletee),
+        'config' => array($name_deletee),
       ),
     );
     $storage->write($name_deleter, $values_deleter);
@@ -494,9 +494,9 @@ class ConfigImporterTest extends DrupalUnitTestBase {
     $staging->write($dynamic_name, $original_dynamic_data);
 
     // Verify the active configuration still returns the default values.
-    $config = \Drupal::config($name);
+    $config = $this->config($name);
     $this->assertIdentical($config->get('foo'), 'bar');
-    $config = \Drupal::config($dynamic_name);
+    $config = $this->config($dynamic_name);
     $this->assertIdentical($config->get('label'), 'Default');
 
     // Import.
@@ -504,9 +504,9 @@ class ConfigImporterTest extends DrupalUnitTestBase {
 
     // Verify the values were updated.
     \Drupal::configFactory()->reset($name);
-    $config = \Drupal::config($name);
+    $config = $this->config($name);
     $this->assertIdentical($config->get('foo'), 'beer');
-    $config = \Drupal::config($dynamic_name);
+    $config = $this->config($dynamic_name);
     $this->assertIdentical($config->get('label'), 'Updated');
 
     // Verify that the original file content is still the same.

@@ -17,7 +17,7 @@ use Drupal\rest\Tests\RESTTestBase;
 class NodeTest extends RESTTestBase {
 
   /**
-   * Modules to enable.
+   * Modules to install.
    *
    * Ensure that the node resource works with comment module enabled.
    *
@@ -45,6 +45,7 @@ class NodeTest extends RESTTestBase {
    * Performs various tests on nodes and their REST API.
    */
   public function testNodes() {
+    $node_storage = $this->container->get('entity.manager')->getStorage('node');
     $this->enableNodeConfiguration('GET', 'view');
 
     $node = $this->entityCreate('node');
@@ -82,7 +83,8 @@ class NodeTest extends RESTTestBase {
     $this->assertResponse(204);
 
     // Reload the node from the DB and check if the title was correctly updated.
-    $updated_node = entity_load('node', $node->id(), TRUE);
+    $node_storage->resetCache(array($node->id()));
+    $updated_node = $node_storage->load($node->id());
     $this->assertEqual($updated_node->getTitle(), $new_title);
     // Make sure that the UUID of the node has not changed.
     $this->assertEqual($node->get('uuid')->getValue(), $updated_node->get('uuid')->getValue(), 'UUID was not changed.');

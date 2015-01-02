@@ -14,6 +14,7 @@ use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Config\Entity\ConfigEntityListBuilder;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -173,7 +174,6 @@ class ViewListBuilder extends ConfigEntityListBuilder {
     $list['#type'] = 'container';
     $list['#attributes']['id'] = 'views-entity-list';
 
-    $list['#attached']['css'] = ViewFormBase::getAdminCSS();
     $list['#attached']['library'][] = 'core/drupal.ajax';
     $list['#attached']['library'][] = 'views_ui/views_ui.listing';
 
@@ -263,7 +263,7 @@ class ViewListBuilder extends ConfigEntityListBuilder {
       if ($display->hasPath()) {
         $path = $display->getPath();
         if ($view->status() && strpos($path, '%') === FALSE) {
-          $all_paths[] = _l('/' . $path, $path);
+          $all_paths[] = \Drupal::l('/' . $path, Url::fromUri('base://' . $path));
         }
         else {
           $all_paths[] = String::checkPlain('/' . $path);
