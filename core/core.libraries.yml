@@ -384,7 +384,7 @@ jquery.joyride:
 
 jquery.once:
   remote: https://github.com/RobLoach/jquery-once
-  version: 2.0.0-alpha.9
+  version: 2.0.0-beta.2
   license:
     name: GNU-GPL-2.0-or-later
     url: https://github.com/RobLoach/jquery-once/blob/master/LICENSE.md
