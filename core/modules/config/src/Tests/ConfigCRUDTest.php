@@ -74,9 +74,7 @@ class ConfigCRUDTest extends KernelTestBase {
     $this->assertIdentical($config->isNew(), FALSE);
 
     // Pollute the config factory static cache.
-    $config_factory->setOverrideState(FALSE);
-    $config_factory->get($name);
-    $config_factory->setOverrideState(TRUE);
+    $config_factory->getEditable($name);
 
     // Delete the configuration object.
     $config->delete();
@@ -87,9 +85,7 @@ class ConfigCRUDTest extends KernelTestBase {
 
     // Verify that all copies of the configuration has been removed from the
     // static cache.
-    $config_factory->setOverrideState(FALSE);
-    $this->assertIdentical($config_factory->get($name)->isNew(), TRUE);
-    $config_factory->setOverrideState(TRUE);
+    $this->assertIdentical($config_factory->getEditable($name)->isNew(), TRUE);
 
     // Verify the active configuration contains no value.
     $actual_data = $storage->read($name);
@@ -130,11 +126,9 @@ class ConfigCRUDTest extends KernelTestBase {
     // Test renaming when config.factory does not have the object in its static
     // cache.
     $name = 'config_test.crud_rename';
-    // Turn off overrides and pollute the non-overrides static cache.
-    $config_factory->setOverrideState(FALSE);
-    $config_factory->get($name);
-    // Turn on overrides and pollute the overrides static cache.
-    $config_factory->setOverrideState(TRUE);
+    // Pollute the non-overrides static cache.
+    $config_factory->getEditable($name);
+    // Pollute the overrides static cache.
     $config = $config_factory->get($name);
     // Rename and ensure that happened properly.
     $new_name = 'config_test.crud_rename_no_cache';
@@ -145,9 +139,7 @@ class ConfigCRUDTest extends KernelTestBase {
     // Ensure the overrides static cache has been cleared.
     $this->assertIdentical($config_factory->get($name)->isNew(), TRUE);
     // Ensure the non-overrides static cache has been cleared.
-    $config_factory->setOverrideState(FALSE);
-    $this->assertIdentical($config_factory->get($name)->isNew(), TRUE);
-    $config_factory->setOverrideState(TRUE);
+    $this->assertIdentical($config_factory->getEditable($name)->isNew(), TRUE);
 
     // Merge data into the configuration object.
     $new_config = $this->config($new_name);
@@ -249,7 +241,7 @@ class ConfigCRUDTest extends KernelTestBase {
     \Drupal::service('module_installer')->install(array('config_test'));
     $storage = new DatabaseStorage($this->container->get('database'), 'config');
     $name = 'config_test.types';
-    $config = $this->container->get('config.factory')->get($name);
+    $config = $this->config($name);
     $original_content = file_get_contents(drupal_get_path('module', 'config_test') . '/' . InstallStorage::CONFIG_INSTALL_DIRECTORY . "/$name.yml");
     $this->verbose('<pre>' . $original_content . "\n" . var_export($storage->read($name), TRUE));
 
@@ -299,7 +291,7 @@ class ConfigCRUDTest extends KernelTestBase {
     // also fails.
     $typed_config_manager = $this->container->get('config.typed');
     $config_name = 'config_test.no_schema';
-    $config = $this->container->get('config.factory')->get($config_name);
+    $config = $this->config($config_name);
     $this->assertFalse($typed_config_manager->hasConfigSchema($config_name));
 
     try {

@@ -430,7 +430,7 @@ function views_add_contextual_links(&$render_element, $location, ViewExecutable 
               break;
             }
             else {
-              $args[$parameter_name] = $view->storage->{$property};
+              $args[$parameter_name] = $view->storage->get($property);
             }
           }
         }
@@ -470,7 +470,7 @@ function views_field_config_create(FieldConfigInterface $field) {
  * Implements hook_ENTITY_TYPE_update() for 'field_config'.
  */
 function views_field_config_update(FieldConfigInterface $field) {
-  Cache::deleteTags(array('extension' => 'views'));
+  Cache::invalidateTags(['extension:views']);
   \Drupal::cache('render')->deleteAll();
 }
 
@@ -478,7 +478,7 @@ function views_field_config_update(FieldConfigInterface $field) {
  * Implements hook_ENTITY_TYPE_delete() for 'field_config'.
  */
 function views_field_config_delete(FieldConfigInterface $field) {
-  Cache::deleteTags(array('extension' => 'views'));
+  Cache::invalidateTags(['extension:views']);
   \Drupal::cache('render')->deleteAll();
 }
 
@@ -487,7 +487,7 @@ function views_field_config_delete(FieldConfigInterface $field) {
  */
 function views_invalidate_cache() {
   // Clear Views' info cache entries.
-  Cache::deleteTags(array('extension' => 'views'));
+  Cache::invalidateTags(['extension:views']);
 
   // Set the menu as needed to be rebuilt.
   \Drupal::service('router.builder_indicator')->setRebuildNeeded();
@@ -593,30 +593,14 @@ function views_hook_info() {
     'views_query_alter',
   ), array('group' => 'views_execution'));
 
-  return $hooks;
-}
+  $hooks['field_views_data'] = array(
+    'group' => 'views',
+  );
+  $hooks['field_views_data_alter'] = array(
+    'group' => 'views',
+  );
 
-/**
- * Return a list of all views and display IDs that have a particular
- * setting in their display's plugin settings.
- *
- * @param string $type
- *   A flag from the display plugin definitions (e.g, 'uses_menu_links').
- *
- * @return array
- *   A list of arrays containing the $view and $display_id.
- * @code
- * array(
- *   array($view, $display_id),
- *   array($view, $display_id),
- * );
- * @endcode
- *
- * @deprecated in Drupal 8.x-dev, will be removed before Drupal 8.0.
- *   Use \Drupal\views\Views::getApplicableViews().
- */
-function views_get_applicable_views($type) {
-  return Views::getApplicableViews($type);
+  return $hooks;
 }
 
 /**

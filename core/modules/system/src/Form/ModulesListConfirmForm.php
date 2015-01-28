@@ -7,6 +7,7 @@
 
 namespace Drupal\system\Form;
 
+use Drupal\Core\Config\PreExistingConfigException;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Extension\ModuleInstallerInterface;
 use Drupal\Core\Form\ConfirmFormBase;
@@ -126,7 +127,7 @@ class ModulesListConfirmForm extends ConfirmFormBase {
     // Display a list of required modules that have to be installed as well but
     // were not manually selected.
     foreach ($this->modules['dependencies'] as $module => $dependencies) {
-      $items[] = format_plural(count($dependencies), 'You must enable the @required module to install @module.', 'You must enable the @required modules to install @module.', array(
+      $items[] = $this->formatPlural(count($dependencies), 'You must enable the @required module to install @module.', 'You must enable the @required modules to install @module.', array(
         '@module' => $this->modules['install'][$module],
         '@required' => implode(', ', $dependencies),
       ));
@@ -157,7 +158,24 @@ class ModulesListConfirmForm extends ConfirmFormBase {
       // the form doesn't allow modules with unmet dependencies, so the only way
       // this can happen is if the filesystem changed between form display and
       // submit, in which case the user has bigger problems.
-      $this->moduleInstaller->install(array_keys($this->modules['install']));
+      try {
+        $this->moduleInstaller->install(array_keys($this->modules['install']));
+      }
+      catch (PreExistingConfigException $e) {
+        $config_objects = $e->flattenConfigObjects($e->getConfigObjects());
+        drupal_set_message(
+          $this->formatPlural(
+            count($config_objects),
+            'Unable to install @extension, %config_names already exists in active configuration.',
+            'Unable to install @extension, %config_names already exist in active configuration.',
+            array(
+              '%config_names' => implode(', ', $config_objects),
+              '@extension' => $this->modules['install'][$e->getExtension()]
+            )),
+          'error'
+        );
+        return;
+      }
     }
 
     // Gets module list after install process, flushes caches and displays a

@@ -97,6 +97,19 @@ h1#page-title {
   margin-right: 236px;
   margin-left: 0;
 }
+@media all and (min-width: 560px) {
+  .node .field-type-image {
+    float: left; /* LTR */
+    margin: 0 1em 0 0; /* LTR */
+  }
+  [dir="rtl"] .node .field-type-image {
+    float: right;
+    margin: 0 0 0 1em;
+  }
+  .node .field-type-image + .field-type-image {
+    clear: both;
+  }
+}
 .field-type-image img,
 .field-name-field-user-picture img {
   margin: 0 0 1em;
@@ -174,4 +187,13 @@ ul.links {
   content: '';
   width: 10px;
   display: inline-block;
+}
+.region-content ul,
+.region-content ol {
+  margin: 1em 0;
+  padding: 0 0 0.25em 15px; /* LTR */
+}
+[dir="rtl"] .region-content ul,
+[dir="rtl"] .region-content ol {
+  padding: 0 15px 0.25em 0;
 }

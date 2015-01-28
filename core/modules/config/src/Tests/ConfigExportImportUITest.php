@@ -10,6 +10,7 @@ namespace Drupal\config\Tests;
 use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Archiver\ArchiveTar;
 use Drupal\field\Entity\FieldConfig;
+use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\simpletest\WebTestBase;
 
 /**
@@ -31,6 +32,42 @@ class ConfigExportImportUITest extends WebTestBase {
   protected $tarball;
 
   /**
+   * Holds the original 'site slogan' before testing.
+   *
+   * @var string
+   */
+  protected $originalSlogan;
+
+  /**
+   * Holds a randomly generated new 'site slogan' for testing.
+   *
+   * @var string
+   */
+  protected $newSlogan;
+
+
+  /**
+   * Holds a content type.
+   *
+   * @var \Drupal\node\NodeInterface
+   */
+  protected $contentType;
+
+  /**
+   * Holds the randomly-generated name of a field.
+   *
+   * @var string
+   */
+  protected $fieldName;
+
+  /**
+   * Holds the field storage entity for $fieldName.
+   *
+   * @var \Drupal\field\FieldStorageConfigInterface
+   */
+  protected $fieldStorage;
+
+  /**
    * Modules to enable.
    *
    * @var array
@@ -46,7 +83,7 @@ class ConfigExportImportUITest extends WebTestBase {
     // roles are created then the role is lost after import. If the roles
     // created have the same name then the sync will fail because they will
     // have different UUIDs.
-    $this->drupalLogin($this->root_user);
+    $this->drupalLogin($this->rootUser);
   }
 
   /**
@@ -62,7 +99,7 @@ class ConfigExportImportUITest extends WebTestBase {
     $this->assertEqual($this->config('system.site')->get('slogan'), $this->newSlogan);
 
     // Create a content type.
-    $this->content_type = $this->drupalCreateContentType();
+    $this->contentType = $this->drupalCreateContentType();
 
     // Create a field.
     $this->fieldName = Unicode::strtolower($this->randomMachineName());
@@ -74,18 +111,18 @@ class ConfigExportImportUITest extends WebTestBase {
     $this->fieldStorage->save();
     entity_create('field_config', array(
       'field_storage' => $this->fieldStorage,
-      'bundle' => $this->content_type->type,
+      'bundle' => $this->contentType->id(),
     ))->save();
-    entity_get_form_display('node', $this->content_type->type, 'default')
+    entity_get_form_display('node', $this->contentType->id(), 'default')
       ->setComponent($this->fieldName, array(
         'type' => 'text_textfield',
       ))
       ->save();
-    entity_get_display('node', $this->content_type->type, 'full')
+    entity_get_display('node', $this->contentType->id(), 'full')
       ->setComponent($this->fieldName)
       ->save();
 
-    $this->drupalGet('node/add/' . $this->content_type->type);
+    $this->drupalGet('node/add/' . $this->contentType->id());
     $this->assertFieldByName("{$this->fieldName}[0][value]", '', 'Widget is displayed');
 
     // Export the configuration.
@@ -104,13 +141,13 @@ class ConfigExportImportUITest extends WebTestBase {
         $field->delete();
       }
     }
-    $field_storages = entity_load_multiple('field_storage_config');
+    $field_storages = FieldStorageConfig::loadMultiple();
     foreach ($field_storages as $field_storage) {
       if ($field_storage->field_name == $this->fieldName) {
         $field_storage->delete();
       }
     }
-    $this->drupalGet('node/add/' . $this->content_type->type);
+    $this->drupalGet('node/add/' . $this->contentType->id());
     $this->assertNoFieldByName("{$this->fieldName}[0][value]", '', 'Widget is not displayed');
 
     // Import the configuration.

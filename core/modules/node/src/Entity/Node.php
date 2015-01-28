@@ -34,6 +34,9 @@ use Drupal\user\UserInterface;
  *       "delete" = "Drupal\node\Form\NodeDeleteForm",
  *       "edit" = "Drupal\node\NodeForm"
  *     },
+ *     "route_provider" = {
+ *       "html" = "Drupal\node\Entity\NodeRouteProvider",
+ *     },
  *     "list_builder" = "Drupal\node\NodeListBuilder",
  *     "translation" = "Drupal\node\NodeTranslationHandler"
  *   },
@@ -54,10 +57,10 @@ use Drupal\user\UserInterface;
  *   field_ui_base_route = "entity.node_type.edit_form",
  *   permission_granularity = "bundle",
  *   links = {
- *     "canonical" = "entity.node.canonical",
- *     "delete-form" = "entity.node.delete_form",
- *     "edit-form" = "entity.node.edit_form",
- *     "version-history" = "entity.node.version_history",
+ *     "canonical" = "/node/{node}",
+ *     "delete-form" = "/node/{node}/delete",
+ *     "edit-form" = "/node/{node}/edit",
+ *     "version-history" = "/node/{node}/revisions",
  *   }
  * )
  */
@@ -452,6 +455,7 @@ class Node extends ContentEntityBase implements NodeInterface {
       ->setDescription(t('A boolean indicating whether the node should be displayed at the top of lists in which it appears.'))
       ->setRevisionable(TRUE)
       ->setTranslatable(TRUE)
+      ->setDefaultValue(FALSE)
       ->setDisplayOptions('form', array(
         'type' => 'boolean_checkbox',
         'settings' => array(

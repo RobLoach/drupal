@@ -14,6 +14,7 @@ use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Field\FieldStorageDefinitionInterface;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\taxonomy\Entity\Term;
+use Drupal\taxonomy\Entity\Vocabulary;
 
 /**
  * Tests load, save and delete for taxonomy terms.
@@ -22,10 +23,23 @@ use Drupal\taxonomy\Entity\Term;
  */
 class TermTest extends TaxonomyTestBase {
 
+  /**
+   * Vocabulary for testing.
+   *
+   * @var \Drupal\taxonomy\VocabularyInterface
+   */
+  protected $vocabulary;
+
+  /**
+   * Taxonomy term reference field for testing.
+   *
+   * @var \Drupal\field\FieldConfigInterface
+   */
+  protected $field;
+
   protected function setUp() {
     parent::setUp();
-    $this->admin_user = $this->drupalCreateUser(array('administer taxonomy', 'bypass node access'));
-    $this->drupalLogin($this->admin_user);
+    $this->drupalLogin($this->drupalCreateUser(['administer taxonomy', 'bypass node access']));
     $this->vocabulary = $this->createVocabulary();
 
     $field_name = 'taxonomy_' . $this->vocabulary->id();
@@ -71,8 +85,8 @@ class TermTest extends TaxonomyTestBase {
     $term2 = $this->createTerm($this->vocabulary);
 
     // Check that hierarchy is flat.
-    $vocabulary = entity_load('taxonomy_vocabulary', $this->vocabulary->id());
-    $this->assertEqual(0, $vocabulary->hierarchy, 'Vocabulary is flat.');
+    $vocabulary = Vocabulary::load($this->vocabulary->id());
+    $this->assertEqual(0, $vocabulary->getHierarchy(), 'Vocabulary is flat.');
 
     // Edit $term2, setting $term1 as parent.
     $edit = array();

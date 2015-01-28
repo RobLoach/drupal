@@ -2,11 +2,11 @@
 #logo,
 .site-logo {
   float: left; /* LTR */
-  padding-left: 5px; /* LTR */
+  padding: 4px 4px 4px 9px; /* LTR */
 }
 [dir="rtl"] #logo,
 [dir="rtl"] .site-logo {
-  padding: 15px 10px 15px 15px;
+  padding: 4px 9px 4px 4px;
 }
 
 #name-and-slogan,
@@ -87,7 +87,7 @@ h1.site-name {
   background: rgba(255, 255, 255, 0.8);
 }
 .region-header .form-required:after {
-  background-image: url(../images/required.svg);
+  background-image: url(../../images/required.svg);
 }
 /* Region header block menus. */
 .region-header .block-menu {
