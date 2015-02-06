@@ -387,26 +387,6 @@ class AttachedAssetsTest extends KernelTestBase {
   }
 
   /**
-   * Tests altering a JavaScript's weight via hook_js_alter().
-   *
-   * @see simpletest_js_alter()
-   */
-  function testAlter() {
-    // Add both tableselect.js and simpletest.js.
-    $build['#attached']['library'][] = 'core/drupal.tableselect';
-    $build['#attached']['library'][] = 'simpletest/drupal.simpletest';
-    $assets = AttachedAssets::createFromRenderArray($build);
-
-    // Render the JavaScript, testing if simpletest.js was altered to be before
-    // tableselect.js. See simpletest_js_alter() to see where this alteration
-    // takes place.
-    $js = $this->assetResolver->getJsAssets($assets, FALSE)[1];
-    $js_render_array = \Drupal::service('asset.js.collection_renderer')->render($js);
-    $rendered_js = $this->renderer->render($js_render_array);
-    $this->assertTrue(strpos($rendered_js, 'simpletest.js') < strpos($rendered_js, 'core/misc/tableselect.js'), 'Altering JavaScript weight through the alter hook.');
-  }
-
-  /**
    * Adds a JavaScript library to the page and alters it.
    *
    * @see common_test_library_info_alter()
