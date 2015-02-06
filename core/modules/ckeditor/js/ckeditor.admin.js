@@ -55,7 +55,7 @@
       // really means that all CKEditor toolbar buttons have been removed. Hence,
       // all editor features will be removed, so any reactions from filters will
       // be undone.
-      var $configurationForm = $('.ckeditor-toolbar-configuration', context).findOnce('.ckeditor-configuration');
+      var $configurationForm = $(context).find('.ckeditor-toolbar-configuration').findOnce('ckeditor-configuration');
       if ($configurationForm.length && Drupal.ckeditor.models && Drupal.ckeditor.models.Model) {
         var config = Drupal.ckeditor.models.Model.toJSON().activeEditorConfig;
         var buttons = Drupal.ckeditor.views.controller.getButtonList(config);
