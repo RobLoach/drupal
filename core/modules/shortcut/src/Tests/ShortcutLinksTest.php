@@ -61,8 +61,7 @@ class ShortcutLinksTest extends ShortcutTestBase {
       $this->assertResponse(200);
       $saved_set = ShortcutSet::load($set->id());
       $paths = $this->getShortcutInformation($saved_set, 'link');
-      $test_path = $test_path != '<front>' ? $test_path : '';
-      $this->assertTrue(in_array($test_path, $paths), 'Shortcut created: ' . $test_path);
+      $this->assertTrue(in_array('user-path:' . $test_path, $paths), 'Shortcut created: ' . $test_path);
       $this->assertLink($title, 0, String::format('Shortcut link %url found on the page.', ['%url' => $test_path]));
     }
     $saved_set = ShortcutSet::load($set->id());
@@ -86,7 +85,7 @@ class ShortcutLinksTest extends ShortcutTestBase {
     ];
     $this->drupalPostForm('admin/config/user-interface/shortcut/manage/' . $set->id() . '/add-link', $form_data, t('Save'));
     $this->assertResponse(200);
-    $this->assertRaw(t('The URL %url is not valid.', ['%url' => 'admin']));
+    $this->assertRaw(t("The path '@link_path' is either invalid or you do not have access to it.", ['@link_path' => 'admin']));
 
     $form_data = [
       'title[0][value]' => $title,
@@ -158,7 +157,7 @@ class ShortcutLinksTest extends ShortcutTestBase {
     $this->drupalPostForm('admin/config/user-interface/shortcut/link/' . $shortcut->id(), array('title[0][value]' => $shortcut->getTitle(), 'link[0][uri]' => $new_link_path), t('Save'));
     $saved_set = ShortcutSet::load($set->id());
     $paths = $this->getShortcutInformation($saved_set, 'link');
-    $this->assertTrue(in_array($new_link_path, $paths), 'Shortcut path changed: ' . $new_link_path);
+    $this->assertTrue(in_array('user-path:' . $new_link_path, $paths), 'Shortcut path changed: ' . $new_link_path);
     $this->assertLinkByHref($new_link_path, 0, 'Shortcut with new path appears on the page.');
   }
 
@@ -259,6 +258,24 @@ class ShortcutLinksTest extends ShortcutTestBase {
     $this->assertLink('Cron', 0, 'Cron shortcut link found on page.');
 
     $this->verifyAccessShortcutsPermissionForEditPages();
+  }
+
+  /**
+   * Tests the shortcuts are correctly ordered by weight in the toolbar.
+   */
+  public function testShortcutLinkOrder() {
+    $this->drupalLogin($this->drupalCreateUser(array('access toolbar', 'access shortcuts')));
+    $this->drupalGet(Url::fromRoute('<front>'));
+    $shortcuts = $this->cssSelect('#toolbar-item-shortcuts-tray .menu a');
+    $this->assertEqual((string) $shortcuts[0], 'Add content');
+    $this->assertEqual((string) $shortcuts[1], 'All content');
+    foreach($this->set->getShortcuts() as $shortcut) {
+      $shortcut->setWeight($shortcut->getWeight() * -1)->save();
+    }
+    $this->drupalGet(Url::fromRoute('<front>'));
+    $shortcuts = $this->cssSelect('#toolbar-item-shortcuts-tray .menu a');
+    $this->assertEqual((string) $shortcuts[0], 'All content');
+    $this->assertEqual((string) $shortcuts[1], 'Add content');
   }
 
   /**

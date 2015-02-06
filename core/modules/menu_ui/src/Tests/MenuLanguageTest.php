@@ -27,15 +27,10 @@ class MenuLanguageTest extends MenuWebTestBase {
    */
   public static $modules = array('language');
 
-  protected $admin_user;
-  protected $menu;
-
   protected function setUp() {
     parent::setUp();
 
-    // Create user.
-    $this->admin_user = $this->drupalCreateUser(array('access administration pages', 'administer menu'));
-    $this->drupalLogin($this->admin_user);
+    $this->drupalLogin($this->drupalCreateUser(array('access administration pages', 'administer menu')));
 
     // Add some custom languages.
     foreach (array('aa', 'bb', 'cc', 'cs') as $language_code) {
@@ -76,7 +71,7 @@ class MenuLanguageTest extends MenuWebTestBase {
     $link_title = $this->randomString();
     $edit = array(
       'title[0][value]' => $link_title,
-      'url' => $link_path,
+      'link[0][uri]' => $link_path,
     );
     $this->drupalPostForm("admin/structure/menu/manage/$menu_name/add", $edit, t('Save'));
     // Check the link was added with the correct menu link default language.
@@ -98,7 +93,7 @@ class MenuLanguageTest extends MenuWebTestBase {
     $link_title = $this->randomString();
     $edit = array(
       'title[0][value]' => $link_title,
-      'url' => $link_path,
+      'link[0][uri]' => $link_path,
     );
     $this->drupalPostForm("admin/structure/menu/manage/$menu_name/add", $edit, t('Save'));
     // Check the link was added with the correct new menu link default language.

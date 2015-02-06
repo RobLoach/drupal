@@ -1042,6 +1042,9 @@ function template_preprocess_table(&$variables) {
       }
     }
   }
+  if (empty($variables['no_striping'])) {
+    $variables['attributes']['data-striping'] = 1;
+  }
 }
 
 /**
@@ -1347,7 +1350,7 @@ function template_preprocess_html(&$variables) {
   $is_front_page =  \Drupal::service('path.matcher')->isFrontPage();
 
   if ($is_front_page) {
-    $variables['root_path'] = TRUE;
+    $variables['root_path'] = FALSE;
   }
   else {
     $system_path = \Drupal::request()->attributes->get('_system_path');
@@ -1482,17 +1485,6 @@ function template_preprocess_page(&$variables) {
     '#theme' => 'status_messages',
     '#access' => $variables['show_messages'],
   );
-
-  // Set the breadcrumb last, so as to increase the chance of being able to
-  // re-use the cache of an already retrieved menu containing the active link
-  // for the current page.
-  // @see menu_tree_page_data()
-  if (!defined('MAINTENANCE_MODE')) {
-    $variables['breadcrumb'] = array(
-      '#theme' => 'breadcrumb',
-      '#links' => \Drupal::service('breadcrumb')->build(\Drupal::routeMatch()),
-    );
-  }
 }
 
 /**

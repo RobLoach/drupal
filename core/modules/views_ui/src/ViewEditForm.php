@@ -318,7 +318,7 @@ class ViewEditForm extends ViewFormBase {
       }
       // @todo Use Url::fromPath() once https://www.drupal.org/node/2351379 is
       //   resolved.
-      $form_state->setRedirectUrl(Url::fromUri("base://$destination"));
+      $form_state->setRedirectUrl(Url::fromUri("base:$destination"));
     }
 
     $view->save();
@@ -424,7 +424,7 @@ class ViewEditForm extends ViewFormBase {
               '#options' => array('alt' => array($this->t("Go to the real page for this display"))),
               // @todo Use Url::fromPath() once
               //   https://www.drupal.org/node/2351379 is resolved.
-              '#url' => Url::fromUri("base://$path"),
+              '#url' => Url::fromUri("base:$path"),
               '#prefix' => '<li class="view">',
               "#suffix" => '</li>',
             );
@@ -555,7 +555,7 @@ class ViewEditForm extends ViewFormBase {
         $build['columns'][$column][$id] = $bucket['build'];
         $build['columns'][$column][$id]['#theme_wrappers'][] = 'views_ui_display_tab_bucket';
         $build['columns'][$column][$id]['#title'] = !empty($bucket['title']) ? $bucket['title'] : '';
-        $build['columns'][$column][$id]['#name'] = !empty($bucket['title']) ? $bucket['title'] : $id;
+        $build['columns'][$column][$id]['#name'] = $id;
       }
     }
 
@@ -727,7 +727,7 @@ class ViewEditForm extends ViewFormBase {
         $element['extra_actions']['#links']['revert'] = array(
           'title' => $this->t('Revert view'),
           'href' => "admin/structure/views/view/{$view->id()}/revert",
-          'query' => array('destination' => "admin/structure/views/view/{$view->id()}"),
+          'query' => array('destination' => $view->url('edit-form')),
         );
       }
       else {
@@ -931,7 +931,8 @@ class ViewEditForm extends ViewFormBase {
     $build['#overridden'] = FALSE;
     $build['#defaulted'] = FALSE;
 
-    $build['#name'] = $build['#title'] = $types[$type]['title'];
+    $build['#name'] = $type;
+    $build['#title'] = $types[$type]['title'];
 
     $rearrange_url = Url::fromRoute('views_ui.form_rearrange', ['js' => 'nojs', 'view' => $view->id(), 'display_id' => $display['id'], 'type' => $type]);
     $class = 'icon compact rearrange';

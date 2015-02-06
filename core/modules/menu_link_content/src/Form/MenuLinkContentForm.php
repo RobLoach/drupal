@@ -193,11 +193,12 @@ class MenuLinkContentForm extends ContentEntityForm implements MenuLinkFormInter
     $new_definition['route_parameters'] = [];
     $new_definition['options'] = [];
 
-    $extracted = $this->pathValidator->getUrlIfValid($form_state->getValue('url'));
+    $extracted = $this->pathValidator->getUrlIfValid($form_state->getValue(['link', 0, 'uri']));
 
     if ($extracted) {
       if ($extracted->isExternal()) {
         $new_definition['url'] = $extracted->getUri();
+        $new_definition['options'] = $extracted->getOptions();
       }
       else {
         $new_definition['route_name'] = $extracted->getRouteName();
@@ -219,45 +220,9 @@ class MenuLinkContentForm extends ContentEntityForm implements MenuLinkFormInter
   public function form(array $form, FormStateInterface $form_state) {
     $form = parent::form($form, $form_state);
 
-    // We always show the internal path here.
-    /** @var \Drupal\Core\Url $url */
-    $url = $this->getEntity()->getUrlObject();
-    if ($url->isExternal()) {
-      $default_value = $url->toString();
-    }
-    elseif ($url->getRouteName() == '<front>') {
-      // The default route for new entities is <front>, but we just want an
-      // empty form field.
-      $default_value = $this->getEntity()->isNew() ? '' : '<front>';
-    }
-    else {
-      // @todo Url::getInternalPath() calls UrlGenerator::getPathFromRoute()
-      // which need a replacement since it is deprecated.
-      // https://www.drupal.org/node/2307061
-      $default_value = $url->getInternalPath();
-    }
-
-    // @todo Add a helper method to Url to render just the query string and
-    // fragment. https://www.drupal.org/node/2305013
-    $options = $url->getOptions();
-    if (isset($options['query'])) {
-      $default_value .= $options['query'] ? ('?' . UrlHelper::buildQuery($options['query'])) : '';
-    }
-    if (isset($options['fragment']) && $options['fragment'] !== '') {
-      $default_value .= '#' . $options['fragment'];
-    }
-
-    $form['url'] = array(
-      '#title' => $this->t('Link path'),
-      '#type' => 'textfield',
-      '#description' => $this->t('The path for this menu link. This can be an internal Drupal path such as %add-node or an external URL such as %drupal. Enter %front to link to the front page.', array('%front' => '<front>', '%add-node' => 'node/add', '%drupal' => 'http://drupal.org')),
-      '#default_value' => $default_value,
-      '#required' => TRUE,
-      '#weight' => -2,
-    );
-
     $default = $this->entity->getMenuName() . ':' . $this->entity->getParentId();
-    $form['menu_parent'] = $this->menuParentSelector->parentSelectElement($default, $this->entity->getPluginId());
+    $id = $this->entity->isNew() ? '' : $this->entity->getPluginId();
+    $form['menu_parent'] = $this->menuParentSelector->parentSelectElement($default, $id);
     $form['menu_parent']['#weight'] = 10;
     $form['menu_parent']['#title'] = $this->t('Parent link');
     $form['menu_parent']['#description'] = $this->t('The maximum depth for a link and all its children is fixed. Some menu links may not be available as parents if selecting them would exceed this limit.');
@@ -280,15 +245,6 @@ class MenuLinkContentForm extends ContentEntityForm implements MenuLinkFormInter
   /**
    * {@inheritdoc}
    */
-  public function validate(array $form, FormStateInterface $form_state) {
-    $this->doValidate($form, $form_state);
-
-    parent::validate($form, $form_state);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function buildEntity(array $form, FormStateInterface $form_state) {
     /** @var \Drupal\menu_link_content\MenuLinkContentInterface $entity */
     $entity = parent::buildEntity($form, $form_state);
@@ -298,11 +254,6 @@ class MenuLinkContentForm extends ContentEntityForm implements MenuLinkFormInter
     $entity->menu_name->value = $new_definition['menu_name'];
     $entity->enabled->value = (bool) $new_definition['enabled'];
     $entity->expanded->value = $new_definition['expanded'];
-
-    $entity->url->value = $new_definition['url'];
-    $entity->route_name->value = $new_definition['route_name'];
-    $entity->setRouteParameters($new_definition['route_parameters']);
-    $entity->setOptions($new_definition['options']);
 
     return $entity;
   }
@@ -338,12 +289,15 @@ class MenuLinkContentForm extends ContentEntityForm implements MenuLinkFormInter
    *   A nested array form elements comprising the form.
    * @param \Drupal\Core\Form\FormStateInterface $form_state
    *   The current state of the form.
+   *
+   * @todo Remove this code, as validation is already performed by the link
+   *   field: https://www.drupal.org/node/2418031.
    */
   protected function doValidate(array $form, FormStateInterface $form_state) {
-    $extracted = $this->pathValidator->getUrlIfValid($form_state->getValue('url'));
+    $extracted = $this->pathValidator->getUrlIfValid($form_state->getValue(['link', 0, 'uri']));
 
     if (!$extracted) {
-      $form_state->setErrorByName('url', $this->t("The path '@link_path' is either invalid or you do not have access to it.", array('@link_path' => $form_state->getValue('url'))));
+      $form_state->setErrorByName('link][0][uri', $this->t("The path '@link_path' is either invalid or you do not have access to it.", array('@link_path' => $form_state->getValue(['link', 0, 'uri']))));
     }
   }
 

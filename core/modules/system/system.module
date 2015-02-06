@@ -15,6 +15,7 @@ use Drupal\Core\KeyValueStore\KeyValueDatabaseExpirableFactory;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\Language\LanguageInterface;
 use Drupal\Core\Menu\MenuTreeParameters;
+use Drupal\Core\Extension\ModuleHandler;
 use Drupal\Core\Url;
 use Drupal\Core\Block\BlockPluginInterface;
 use Drupal\user\UserInterface;
@@ -421,7 +422,7 @@ function system_authorized_init($callback, $file, $arguments = array(), $page_ti
 function system_authorized_get_url(array $options = array()) {
   global $base_url;
   // Prefix with $base_url so url() treats it as an external link.
-  $url = Url::fromUri('base://core/authorize.php');
+  $url = Url::fromUri('base:core/authorize.php');
   $url_options = $url->getOptions();
   $url->setOptions($options + $url_options);
   return $url;
@@ -458,7 +459,7 @@ function system_authorized_run($callback, $file, $arguments = array(), $page_tit
 function system_authorized_batch_process() {
   $finish_url = system_authorized_get_url();
   $process_url = system_authorized_batch_processing_url();
-  return batch_process($finish_url->toString(), $process_url->toString());
+  return batch_process($finish_url->toString(), $process_url);
 }
 
 /**
@@ -631,7 +632,7 @@ function system_js_settings_alter(&$settings, AttachedAssetsInterface $assets) {
 
   $pathPrefix = '';
   $current_query = $request->query->all();
-  _url('', array('script' => &$scriptPath, 'prefix' => &$pathPrefix));
+  Url::fromRoute('<front>', [], array('script' => &$scriptPath, 'prefix' => &$pathPrefix))->toString();
   $current_path = \Drupal::routeMatch()->getRouteName() ? Url::fromRouteMatch(\Drupal::routeMatch())->getInternalPath() : '';
   $current_path_is_admin = \Drupal::service('router.admin_context')->isAdminRoute();
   $path_settings = [
@@ -722,11 +723,11 @@ function system_user_presave(UserInterface $account) {
 /**
  * Implements hook_user_login().
  */
-function system_user_login($account) {
+function system_user_login(UserInterface $account) {
   $config = \Drupal::config('system.date');
   // If the user has a NULL time zone, notify them to set a time zone.
   if (!$account->getTimezone() && $config->get('timezone.user.configurable') && $config->get('timezone.user.warn')) {
-    drupal_set_message(t('Configure your <a href="@user-edit">account time zone setting</a>.', array('@user-edit' => _url("user/$account->id()/edit", array('query' => drupal_get_destination(), 'fragment' => 'edit-timezone')))));
+    drupal_set_message(t('Configure your <a href="@user-edit">account time zone setting</a>.', array('@user-edit' => $account->url('edit-form', array('query' => drupal_get_destination(), 'fragment' => 'edit-timezone')))));
   }
 }
 
@@ -958,12 +959,13 @@ function _system_rebuild_module_data() {
  */
 function _system_rebuild_module_data_ensure_required($module, &$modules) {
   if (!empty($module->info['required'])) {
-    foreach ($module->info['dependencies'] as $dependant) {
-      if (!isset($modules[$dependant]->info['required'])) {
-        $modules[$dependant]->info['required'] = TRUE;
-        $modules[$dependant]->info['explanation'] = t('Dependency of required module @module', array('@module' => $module->info['name']));
+    foreach ($module->info['dependencies'] as $dependency) {
+      $dependency_name = ModuleHandler::parseDependency($dependency)['name'];
+      if (!isset($modules[$dependency_name]->info['required'])) {
+        $modules[$dependency_name]->info['required'] = TRUE;
+        $modules[$dependency_name]->info['explanation'] = t('Dependency of required module @module', array('@module' => $module->info['name']));
         // Ensure any dependencies it has are required.
-        _system_rebuild_module_data_ensure_required($modules[$dependant], $modules);
+        _system_rebuild_module_data_ensure_required($modules[$dependency_name], $modules);
       }
     }
   }

@@ -15,7 +15,7 @@ use Symfony\Component\Routing\RouteCollection;
  * In addition to implementing the interface, specify 'uses_routes' in the
  * plugin definition.
  */
-interface DisplayRouterInterface {
+interface DisplayRouterInterface extends DisplayPluginInterface {
 
   /**
    * Adds the route entry of a view to the collection.
@@ -37,5 +37,13 @@ interface DisplayRouterInterface {
    *   Returns a list of "$view_id.$display_id" elements which got overridden.
    */
   public function alterRoutes(RouteCollection $collection);
+
+  /**
+   * Generates an URL to this display.
+   *
+   * @return \Drupal\Core\Url
+   *   A URL object for the display.
+   */
+  public function getUrlInfo();
 
 }

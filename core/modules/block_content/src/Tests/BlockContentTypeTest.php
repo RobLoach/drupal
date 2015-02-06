@@ -119,14 +119,14 @@ class BlockContentTypeTest extends BlockContentTestBase {
       t('%label is used by 1 custom block on your site. You can not remove this block type until you have removed all of the %label blocks.', array('%label' => $type->label())),
       'The block type will not be deleted until all blocks of that type are removed.'
     );
-    $this->assertNoText(t('This action cannot be undone.'), 'The node type deletion confirmation form is not available.');
+    $this->assertNoText(t('This action cannot be undone.'), 'The block type deletion confirmation form is not available.');
 
     // Delete the block.
     $block->delete();
     // Attempt to delete the block type, which should now be allowed.
     $this->drupalGet('admin/structure/block/block-content/manage/' . $type->id() . '/delete');
     $this->assertRaw(
-      t('Are you sure you want to delete %type?', array('%type' => $type->id())),
+      t('Are you sure you want to delete the custom block type %type?', array('%type' => $type->id())),
       'The block type is available for deletion.'
     );
     $this->assertText(t('This action cannot be undone.'), 'The custom block type deletion confirmation form is available.');

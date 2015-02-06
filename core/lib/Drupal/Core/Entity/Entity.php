@@ -193,8 +193,8 @@ abstract class Entity implements EntityInterface {
       }
     }
 
-    // Pass the entity data to _url() so that alter functions do not need to
-    // look up this entity again.
+    // Pass the entity data through as options, so that alter functions do not
+    // need to look up this entity again.
     $uri
       ->setOption('entity_type', $this->getEntityTypeId())
       ->setOption('entity', $this);
@@ -567,6 +567,15 @@ abstract class Entity implements EntityInterface {
    */
   public function getConfigDependencyName() {
     return $this->getEntityTypeId() . ':' . $this->bundle() . ':' . $this->uuid();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getConfigTarget() {
+    // For content entities, use the UUID for the config target identifier.
+    // This ensures that references to the target can be deployed reliably.
+    return $this->uuid();
   }
 
 }

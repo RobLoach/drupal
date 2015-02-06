@@ -577,7 +577,6 @@ class ViewUI implements ViewEntityInterface {
     $combined = $show_query && $show_stats;
 
     $rows = array('query' => array(), 'statistics' => array());
-    $output = '';
 
     $errors = $this->executable->validate();
     $this->executable->destroy();
@@ -599,7 +598,9 @@ class ViewUI implements ViewEntityInterface {
       $this->executable->setExposedInput($exposed_input);
 
       if (!$this->executable->setDisplay($display_id)) {
-        return t('Invalid display id @display', array('@display' => $display_id));
+        return [
+          '#markup' => t('Invalid display id @display', array('@display' => $display_id)),
+        ];
       }
 
       $this->executable->setArguments($args);
@@ -644,7 +645,6 @@ class ViewUI implements ViewEntityInterface {
 
       // Execute/get the view preview.
       $preview = $this->executable->preview($display_id, $args);
-      $preview = drupal_render($preview);
 
       if ($show_additional_queries) {
         $this->endQueryCapture();
@@ -677,8 +677,19 @@ class ViewUI implements ViewEntityInterface {
               }
             }
             $rows['query'][] = array(
-              array('data' => array('#type' => 'inline_template', '#template' => "<strong>{% trans 'Query' %}</strong>")),
-              array('data' => array('#type' => 'inline_template', '#template' => '<pre>{{ query }}</pre>', '#context' => array('query' => strtr($query_string, $quoted)))),
+              array(
+                'data' => array(
+                  '#type' => 'inline_template',
+                  '#template' => "<strong>{% trans 'Query' %}</strong>",
+                ),
+              ),
+              array(
+                'data' => array(
+                  '#type' => 'inline_template',
+                  '#template' => '<pre>{{ query }}</pre>',
+                  '#context' => array('query' => strtr($query_string, $quoted)),
+                ),
+              ),
             );
             if (!empty($this->additionalQueries)) {
               $queries = '<strong>' . t('These queries were run during view rendering:') . '</strong>';
@@ -691,18 +702,28 @@ class ViewUI implements ViewEntityInterface {
               }
 
               $rows['query'][] = array(
-                array('data' => array('#type' => 'inline_template', '#template' => "<strong>{% trans 'Other queries' %}</strong>")),
+                array(
+                  'data' => array(
+                    '#type' => 'inline_template',
+                    '#template' => "<strong>{% trans 'Other queries' %}</strong>",
+                  ),
+                ),
                 SafeMarkup::set('<pre>' . $queries . '</pre>'),
               );
             }
           }
           if ($show_info) {
             $rows['query'][] = array(
-              array('data' => array('#type' => 'inline_template', '#template' => "<strong>{% trans 'Title' %}</strong>")),
+              array(
+                'data' => array(
+                  '#type' => 'inline_template',
+                  '#template' => "<strong>{% trans 'Title' %}</strong>",
+                ),
+              ),
               Xss::filterAdmin($this->executable->getTitle()),
             );
             if (isset($path)) {
-              $path = \Drupal::l($path, Url::fromUri('base://' . $path));
+              $path = \Drupal::l($path, Url::fromUri('user-path:' . $path));
             }
             else {
               $path = t('This display has no path.');
@@ -712,17 +733,32 @@ class ViewUI implements ViewEntityInterface {
 
           if ($show_stats) {
             $rows['statistics'][] = array(
-              array('data' => array('#type' => 'inline_template', '#template' => "<strong>{% trans 'Query build time' %}</strong>")),
+              array(
+                'data' => array(
+                  '#type' => 'inline_template',
+                  '#template' => "<strong>{% trans 'Query build time' %}</strong>",
+                ),
+              ),
               t('@time ms', array('@time' => intval($this->executable->build_time * 100000) / 100)),
             );
 
             $rows['statistics'][] = array(
-              array('data' => array('#type' => 'inline_template', '#template' => "<strong>{% trans 'Query execute time' %}</strong>")),
+              array(
+                'data' => array(
+                  '#type' => 'inline_template',
+                  '#template' => "<strong>{% trans 'Query execute time' %}</strong>",
+                ),
+              ),
               t('@time ms', array('@time' => intval($this->executable->execute_time * 100000) / 100)),
             );
 
             $rows['statistics'][] = array(
-              array('data' => array('#type' => 'inline_template', '#template' => "<strong>{% trans 'View render time' %}</strong>")),
+              array(
+                'data' => array(
+                  '#type' => 'inline_template',
+                  '#template' => "<strong>{% trans 'View render time' %}</strong>",
+                ),
+              ),
               t('@time ms', array('@time' => intval($this->executable->render_time * 100000) / 100)),
             );
           }
@@ -769,10 +805,16 @@ class ViewUI implements ViewEntityInterface {
     }
 
     if ($show_location === 'above' || $show_stats === 'above') {
-      $output .= drupal_render($table) . $preview;
+      $output = [
+        'table' => $table,
+        'preview' => $preview,
+      ];
     }
     elseif ($show_location === 'below' || $show_stats === 'below') {
-      $output .= $preview . drupal_render($table);
+      $output = [
+        'preview' => $preview,
+        'table' => $table,
+      ];
     }
 
     // Ensure that we just remove an additional request we pushed earlier.
@@ -1149,6 +1191,13 @@ class ViewUI implements ViewEntityInterface {
    */
   public function getConfigDependencyName() {
     return $this->storage->getConfigDependencyName();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getConfigTarget() {
+    return $this->storage->getConfigTarget();
   }
 
   /**

@@ -11,6 +11,7 @@ use Drupal\Component\Utility\String;
 use Drupal\Core\DependencyInjection\DependencySerializationTrait;
 use Drupal\Core\Form\FormState;
 use Drupal\Core\Session\AccountInterface;
+use Drupal\views\Plugin\views\display\DisplayRouterInterface;
 use Drupal\views\Plugin\views\query\QueryPluginBase;
 use Drupal\views\ViewEntityInterface;
 use Drupal\Component\Utility\Tags;
@@ -1758,6 +1759,26 @@ class ViewExecutable {
   }
 
   /**
+   * Gets the Url object associated with the display handler.
+   *
+   * @param string $display_id
+   *   (Optional) The display id. ( Used only to detail an exception. )
+   *
+   * @throws \InvalidArgumentException
+   *   Thrown when the display plugin does not have a URL to return.
+   *
+   * @return \Drupal\Core\Url
+   *   The display handlers URL object.
+   */
+  public function getUrlInfo($display_id = '') {
+    $this->initDisplay();
+    if (!$this->display_handler instanceof DisplayRouterInterface) {
+      throw new \InvalidArgumentException(String::format('You cannot generate a URL for the display @display_id', ['@display_id' => $display_id]));
+    }
+    return $this->display_handler->getUrlInfo();
+  }
+
+  /**
    * Get the base path used for this view.
    */
   public function getPath() {
@@ -1980,6 +2001,8 @@ class ViewExecutable {
    *   An array of handler instances of a given type for this display.
    */
   public function getHandlers($type, $display_id = NULL) {
+    $old_display_id = !empty($this->current_display) ? $this->current_display : 'default';
+
     $this->setDisplay($display_id);
 
     if (!isset($display_id)) {
@@ -1988,7 +2011,14 @@ class ViewExecutable {
 
     // Get info about the types so we can get the right data.
     $types = static::getHandlerTypes();
-    return $this->displayHandlers->get($display_id)->getOption($types[$type]['plural']);
+
+    $handlers = $this->displayHandlers->get($display_id)->getOption($types[$type]['plural']);
+
+    // Restore initial display id (if any) or set to 'default'.
+    if ($display_id != $old_display_id) {
+      $this->setDisplay($old_display_id);
+    }
+    return $handlers;
   }
 
   /**

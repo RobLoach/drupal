@@ -9,6 +9,7 @@ namespace Drupal\config\Tests;
 
 use Drupal\Core\Config\FileStorage;
 use Drupal\Core\Config\InstallStorage;
+use Drupal\Core\Config\Schema\ConfigSchemaAlterException;
 use Drupal\Core\TypedData\Type\IntegerInterface;
 use Drupal\Core\TypedData\Type\StringInterface;
 use Drupal\simpletest\KernelTestBase;
@@ -25,7 +26,7 @@ class ConfigSchemaTest extends KernelTestBase {
    *
    * @var array
    */
-  public static $modules = array('system', 'language', 'locale', 'field', 'image', 'config_schema_test');
+  public static $modules = array('system', 'language', 'locale', 'field', 'image', 'config_test', 'config_schema_test');
 
   /**
    * {@inheritdoc}
@@ -171,7 +172,7 @@ class ConfigSchemaTest extends KernelTestBase {
     $expected['mapping']['effects']['sequence'][0]['mapping']['uuid']['type'] = 'string';
     $expected['mapping']['third_party_settings']['type'] = 'sequence';
     $expected['mapping']['third_party_settings']['label'] = 'Third party settings';
-    $expected['mapping']['third_party_settings']['sequence'][0]['type'] = 'image_style.third_party.[%key]';
+    $expected['mapping']['third_party_settings']['sequence'][0]['type'] = '[%parent.%parent.%type].third_party.[%key]';
     $expected['type'] = 'image.style.*';
 
     $this->assertEqual($definition, $expected);
@@ -201,6 +202,19 @@ class ConfigSchemaTest extends KernelTestBase {
     $expected['type'] =  'image.effect.image_scale';
 
     $this->assertEqual($definition, $expected, 'Retrieved the right metadata for the first effect of image.style.medium');
+
+    $test = \Drupal::service('config.typed')->get('config_test.dynamic.third_party')->get('third_party_settings.config_schema_test');
+    $definition = $test->getDataDefinition()->toArray();
+    $expected = array();
+    $expected['type'] = 'config_test.dynamic.*.third_party.config_schema_test';
+    $expected['label'] = 'Mapping';
+    $expected['class'] = '\Drupal\Core\Config\Schema\Mapping';
+    $expected['definition_class'] = '\Drupal\Core\TypedData\MapDataDefinition';
+    $expected['mapping'] = [
+      'integer' => ['type' => 'integer'],
+      'string' => ['type' => 'string'],
+    ];
+    $this->assertEqual($definition, $expected, 'Retrieved the right metadata for config_test.dynamic.third_party:third_party_settings.config_schema_test');
 
     // More complex, several level deep test.
     $definition = \Drupal::service('config.typed')->getDefinition('config_schema_test.someschema.somemodule.section_one.subsection');
@@ -434,6 +448,56 @@ class ConfigSchemaTest extends KernelTestBase {
 
     $definition = $tests[3]['settings']->getDataDefinition()->toArray();
     $this->assertEqual($definition['type'], 'test_with_parents.plugin_types.*');
+  }
+
+  /**
+   * Tests hook_config_schema_info_alter().
+   */
+  public function testConfigSchemaInfoAlter() {
+    /** @var \Drupal\Core\Config\TypedConfigManagerInterface $typed_config */
+    $typed_config = \Drupal::service('config.typed');
+    $typed_config->clearCachedDefinitions();
+
+    // Ensure that keys can not be added or removed by
+    // hook_config_schema_info_alter().
+    \Drupal::state()->set('config_schema_test_exception_remove', TRUE);
+    $message = 'Expected ConfigSchemaAlterException thrown.';
+    try {
+      $typed_config->getDefinitions();
+      $this->fail($message);
+    }
+    catch (ConfigSchemaAlterException $e) {
+      $this->pass($message);
+      $this->assertEqual($e->getMessage(), 'Invoking hook_config_schema_info_alter() has removed (config_schema_test.hook) schema definitions');
+    }
+
+    \Drupal::state()->set('config_schema_test_exception_add', TRUE);
+    $message = 'Expected ConfigSchemaAlterException thrown.';
+    try {
+      $typed_config->getDefinitions();
+      $this->fail($message);
+    }
+    catch (ConfigSchemaAlterException $e) {
+      $this->pass($message);
+      $this->assertEqual($e->getMessage(), 'Invoking hook_config_schema_info_alter() has added (config_schema_test.hook_added_defintion) and removed (config_schema_test.hook) schema definitions');
+    }
+
+    \Drupal::state()->set('config_schema_test_exception_remove', FALSE);
+    $message = 'Expected ConfigSchemaAlterException thrown.';
+    try {
+      $typed_config->getDefinitions();
+      $this->fail($message);
+    }
+    catch (ConfigSchemaAlterException $e) {
+      $this->pass($message);
+      $this->assertEqual($e->getMessage(), 'Invoking hook_config_schema_info_alter() has added (config_schema_test.hook_added_defintion) schema definitions');
+    }
+
+    // Tests that hook_config_schema_info_alter() can add additional metadata to
+    // existing configuration schema.
+    \Drupal::state()->set('config_schema_test_exception_add', FALSE);
+    $definitions = $typed_config->getDefinitions();
+    $this->assertEqual($definitions['config_schema_test.hook']['additional_metadata'], 'new schema info');
   }
 
 }
