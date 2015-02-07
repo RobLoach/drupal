@@ -49,18 +49,6 @@ function simpletest_theme() {
 }
 
 /**
- * Implements hook_js_alter().
- */
-function simpletest_js_alter(&$javascript, AttachedAssetsInterface $assets) {
-  // Since SimpleTest is a special use case for the table select, stick the
-  // SimpleTest JavaScript above the table select.
-  $simpletest = drupal_get_path('module', 'simpletest') . '/simpletest.js';
-  if (array_key_exists($simpletest, $javascript) && array_key_exists('core/misc/tableselect.js', $javascript)) {
-    $javascript[$simpletest]['weight'] = $javascript['core/misc/tableselect.js']['weight'] - 1;
-  }
-}
-
-/**
  * Prepares variables for simpletest result summary templates.
  *
  * Default template: simpletest-result-summary.html.twig.

@@ -1,0 +1,6 @@
+name: 'Attached assets mock module'
+type: module
+description: 'Test for attached asset calls.'
+core: 8.x
+package: Testing
+version: VERSION
