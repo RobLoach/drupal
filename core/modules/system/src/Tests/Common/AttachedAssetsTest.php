@@ -45,7 +45,7 @@ class AttachedAssetsTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = array('language', 'simpletest', 'common_test', 'system');
+  public static $modules = array('language', 'simpletest', 'common_test', 'system', 'attached_assets_test');
 
   /**
    * {@inheritdoc}
@@ -384,6 +384,25 @@ class AttachedAssetsTest extends KernelTestBase {
     $this->assertTrue(strpos($rendered_js, 'lighter.css') < strpos($rendered_js, 'first.js'), 'Lighter CSS assets are rendered first.');
     $this->assertTrue(strpos($rendered_js, 'lighter.js') < strpos($rendered_js, 'first.js'), 'Lighter JavaScript assets are rendered first.');
     $this->assertTrue(strpos($rendered_js, 'before-jquery.js') < strpos($rendered_js, 'core/assets/vendor/jquery/jquery.min.js'), 'Rendering a JavaScript file above jQuery.');
+  }
+
+  /**
+   * Tests altering a JavaScript's weight via hook_js_alter().
+   *
+   * @see attached_assets_test_js_alter()
+   */
+  function testAlter() {
+    // Add jQuery.
+    $build['#attached']['library'][] = 'core/jquery';
+    $assets = AttachedAssets::createFromRenderArray($build);
+
+    // Render the JavaScript, testing if attached_assets_test.js was added. See
+    // attached_assets_test_js_alter() to see this file being added using
+    // hook_js_alter().
+    $js = $this->assetResolver->getJsAssets($assets, FALSE)[1];
+    $js_render_array = \Drupal::service('asset.js.collection_renderer')->render($js);
+    $rendered_js = $this->renderer->render($js_render_array);
+    $this->assertTrue(strpos($rendered_js, 'attached_assets_test.js') > 0, 'Altering JavaScript weight through the alter hook.');
   }
 
   /**
