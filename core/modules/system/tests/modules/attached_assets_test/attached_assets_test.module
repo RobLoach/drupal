@@ -2,17 +2,15 @@
 
 /**
  * @file
- * Simpletest mock module for Ajax forms testing.
+ * Simpletest mock module for Attached Assets testing.
  */
 
-use Drupal\Core\Ajax;
-use Drupal\Core\Ajax\AjaxResponse;
-use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Asset\AttachedAssetsInterface;
 
 /**
  * Attached Assets Test: hook_js_alter().
  */
-function simpletest_js_alter(&$javascript, AttachedAssetsInterface $assets) {
+function attached_assets_test_js_alter(&$javascript, AttachedAssetsInterface $assets) {
   $file = drupal_get_path('module', 'attached_assets_test') . '/attached_assets_test.js';
   $javascript[$file] = $javascript['core/assets/vendor/jquery/jquery.min.js'];
   $javascript[$file]['data'] = $file;
