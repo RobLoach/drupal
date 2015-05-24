@@ -2196,6 +2196,18 @@ array_space[a b] = Value';
     $this->assertEqual($parsed['array_space'], $expected['array_space'], 'Set an array with a whitespace in the key.');
     $this->assertEqual($parsed, $expected, 'Entire parsed .info string and expected array are identical.');
   }
+
+  /**
+   * Test drupal_parse_info_format() with large data.
+   */
+  function testDrupalParseInfoFormatMalformed() {
+    // @todo Since InfoFileParserTestCase.info-test is malformed and large, it
+    // causes a Segmentation Fault in PHP. Add a check in
+    // drupal_parse_info_format() to protect from segfaults.
+    $config = file_get_contents(dirname(__FILE__) . '/tests/InfoFileParserTestCase.info-test');
+    $parsed = drupal_parse_info_format($config);
+    $this->assertEqual($parsed, array(), 'Protects from large/malformed .info file data.');
+  }
 }
 
 /**
