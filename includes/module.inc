@@ -378,8 +378,9 @@ function module_implements($hook, $sort = FALSE, $refresh = FALSE) {
  */
 function module_invoke() {
   $args = func_get_args();
-  $module = array_shift($args);
-  $hook = array_shift($args);
+  $module = $args[0];
+  $hook = $args[1];
+  unset($args[0], $args[1]);
   $function = $module .'_'. $hook;
   if (module_hook($module, $hook)) {
     return call_user_func_array($function, $args);

@@ -642,7 +642,7 @@ function file_scan_directory($dir, $mask, $nomask = array('.', '..', 'CVS'), $ca
         if (is_dir("$dir/$file") && $recurse) {
           $files = array_merge($files, file_scan_directory("$dir/$file", $mask, $nomask, $callback, $recurse, $key, $min_depth, $depth + 1));
         }
-        elseif ($depth >= $min_depth && ereg($mask, $file)) {
+        elseif ($depth >= $min_depth && @ereg($mask, $file)) {
           $filename = "$dir/$file";
           $basename = basename($file);
           $name = substr($basename, 0, strrpos($basename, '.'));

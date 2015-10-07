@@ -259,7 +259,7 @@ function user_validate_name($name) {
   if (substr($name, 0, 1) == ' ') return t('The username cannot begin with a space.');
   if (substr($name, -1) == ' ') return t('The username cannot end with a space.');
   if (strpos($name, '  ') !== FALSE) return t('The username cannot contain multiple spaces in a row.');
-  if (ereg("[^\x80-\xF7 [:alnum:]@_.-]", $name)) return t('The username contains an illegal character.');
+  if (@ereg("[^\x80-\xF7 [:alnum:]@_.-]", $name)) return t('The username contains an illegal character.');
   if (preg_match('/[\x{80}-\x{A0}'.          // Non-printable ISO-8859-1 + NBSP
                    '\x{AD}'.                 // Soft-hyphen
                    '\x{2000}-\x{200F}'.      // Various space characters
@@ -463,7 +463,7 @@ function user_search($op = 'search', $keys = NULL) {
 /**
  * Implementation of hook_user().
  */
-function user_user($type, &$edit, &$user, $category = NULL) {
+function user_user($type, &$edit, $user, $category = NULL) {
   if ($type == 'view') {
     $items['history'] = array('title' => t('Member for'),
       'value' => format_interval(time() - $user->created),
@@ -1042,7 +1042,9 @@ function user_logout() {
 
   // Destroy the current session:
   session_destroy();
-  module_invoke_all('user', 'logout', NULL, $user);
+  // Only variables can be passed by reference workaround.
+  $null = NULL;
+  user_module_invoke('logout', $null, $user);
 
   // Load the anonymous user
   $user = drupal_anonymous_user();
@@ -1504,7 +1506,7 @@ function user_delete($edit, $uid) {
   $array = array('%name' => $account->name, '%email' => '<'. $account->mail .'>');
   watchdog('user', t('Deleted user: %name %email.', $array), WATCHDOG_NOTICE);
   drupal_set_message(t('%name has been deleted.', $array));
-  module_invoke_all('user', 'delete', $edit, $account);
+  user_module_invoke('delete', $edit, $account);
 }
 
 function user_edit_validate($form_id, $form_values) {
@@ -1544,8 +1546,11 @@ function user_view($uid = 0) {
   }
   // Retrieve and merge all profile fields:
   $fields = array();
+  $null = NULL;
   foreach (module_list() as $module) {
-    if ($data = module_invoke($module, 'user', 'view', '', $account)) {
+    $function = $module .'_user';
+    // $null and $account need to be passed by reference.
+    if (function_exists($function) && ($data = $function('view', $null, $account, ''))) {
       foreach ($data as $category => $items) {
         foreach ($items as $key => $item) {
           $item['class'] = "$module-". $item['class'];
@@ -2455,8 +2460,12 @@ function user_help_page() {
 function _user_categories($account) {
   $categories = array();
 
+  // Only variables can be passed by reference workaround.
+  $null = NULL;
   foreach (module_list() as $module) {
-    if ($data = module_invoke($module, 'user', 'categories', NULL, $account, '')) {
+    $function = $module .'_user';
+    // $null and $account need to be passed by reference.
+    if (function_exists($function) && ($data = $function('categories', $null, $account, ''))) {
       $categories = array_merge($data, $categories);
     }
   }
@@ -2478,7 +2487,9 @@ function _user_sort($a, $b) {
 function _user_forms(&$edit, $account, $category, $hook = 'form') {
   $groups = array();
   foreach (module_list() as $module) {
-    if ($data = module_invoke($module, 'user', $hook, $edit, $account, $category)) {
+    $function = $module .'_user';
+    // $edit and $account need to be passed by reference.
+    if (function_exists($function) && ($data = $function($hook, $edit, $account, $category))) {
       $groups = array_merge_recursive($data, $groups);
     }
   }
