@@ -167,6 +167,10 @@ function theme() {
     $functions[$function] = theme_get_function($function);
   }
   if ($functions[$function]) {
+    // Force the arguments to pass through by reference.
+    foreach($args as $i => &$arg){
+      $args[$i] = &$arg;
+    }
     $output = call_user_func_array($functions[$function], $args);
     // Add final markup to the full page.
     if ($function == 'page' || $function == 'book_export_html') {

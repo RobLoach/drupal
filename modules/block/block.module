@@ -588,7 +588,7 @@ function block_box_save($edit, $delta = NULL) {
  * Allow users to decide which custom blocks to display when they visit
  * the site.
  */
-function block_user($type, $edit, &$account, $category = NULL) {
+function block_user($type, $edit, $account, $category = NULL) {
   switch ($type) {
     case 'form':
       if ($category == 'account') {

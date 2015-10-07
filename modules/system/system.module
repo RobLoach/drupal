@@ -324,7 +324,7 @@ function system_menu($may_cache) {
  *
  * Allows users to individually set their theme and time zone.
  */
-function system_user($type, $edit, &$user, $category = NULL) {
+function system_user($type, $edit, $user, $category = NULL) {
   if ($type == 'form' && $category == 'account') {
     $form['theme_select'] = system_theme_select_form(t('Selecting a different theme will change the look and feel of the site.'), $edit['theme'], 2);
 
@@ -1863,7 +1863,7 @@ function _system_sort_requirements($a, $b) {
 /**
  * Theme status report
  */
-function theme_status_report(&$requirements) {
+function theme_status_report($requirements) {
   $i = 0;
   $output = '<table class="system-status-report">';
   foreach ($requirements as $requirement) {
