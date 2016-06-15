@@ -28,7 +28,7 @@ if (version_compare(PHP_VERSION, '5.5.9') < 0) {
   exit;
 }
 
-if (function_exists('opcache_get_status') && opcache_get_status()['opcache_enabled'] && !ini_get('opcache.save_comments')) {
+if (function_exists('opcache_invalidate') && ini_get('opcache.enable') && !ini_get('opcache.save_comments')) {
   print 'Systems with OPcache installed must have <a href="http://php.net/manual/en/opcache.configuration.php#ini.opcache.save-comments">opcache.save_comments</a> enabled.';
   exit();
 }
