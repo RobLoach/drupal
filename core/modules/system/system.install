@@ -242,7 +242,7 @@ function system_requirements($phase) {
 
   if ($phase == 'install' || $phase == 'runtime') {
     // Check to see if OPcache is installed.
-    $opcache_enabled = (function_exists('opcache_get_status') && opcache_get_status()['opcache_enabled']);
+    $opcache_enabled = (function_exists('opcache_invalidate') && ini_get('opcache.enable'));
     if (!$opcache_enabled) {
       $requirements['php_opcache'] = array(
         'value' => t('Not enabled'),
