@@ -10,6 +10,21 @@ namespace Drupal\Component\Utility;
 class OpCodeCache {
 
   /**
+   * Checks if OpCodeCache is enabled.
+   *
+   * @return bool
+   *   TRUE if opcache is enabled, FALSE otherwise.
+   */
+  public static function isEnabled() {
+    if (function_exists('opcache_get_status')) {
+      $status = opcache_get_status();
+      return $status['opcache_enabled'];
+    }
+
+    return FALSE;
+  }
+
+  /**
    * Invalidates a PHP file from a possibly active opcode cache.
    *
    * In case the opcode cache does not support to invalidate an individual file,
