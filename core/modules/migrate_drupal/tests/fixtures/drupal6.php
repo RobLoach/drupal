@@ -3089,24 +3089,6 @@ $connection->schema()->createTable('content_type_page', array(
   'mysql_character_set' => 'utf8',
 ));
 
-$connection->insert('content_type_page')
-->fields(array(
-  'vid',
-  'nid',
-  'field_text_field_value',
-))
-->values(array(
-  'vid' => '1',
-  'nid' => '1',
-  'field_text_field_value' => NULL,
-))
-->values(array(
-  'vid' => '3',
-  'nid' => '1',
-  'field_text_field_value' => NULL,
-))
-->execute();
-
 $connection->schema()->createTable('content_type_story', array(
   'fields' => array(
     'nid' => array(
@@ -45550,6 +45532,14 @@ $connection->insert('variable')
 ->values(array(
   'name' => 'language_content_type_article',
   'value' => 's:1:"2";',
+))
+->values(array(
+  'name' => 'language_content_type_employee',
+  'value' => 's:1:"2";',
+))
+->values(array(
+  'name' => 'i18n_lock_node_article',
+  'value' => 'i:1;',
 ))
 ->values(array(
   'name' => 'language_count',
